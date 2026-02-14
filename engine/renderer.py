@@ -374,6 +374,11 @@ class ChessRenderer:
         
         # Cache uniform locations for render loop performance
         self._cache_uniform_locations()
+        
+        # Cache for picking ray calculations
+        self._cached_inv_vp: Optional[np.ndarray] = None
+        self._cached_view_hash: Optional[int] = None
+        self._cached_proj_hash: Optional[int] = None
 
     def _load_program(self, vertex_name: str, fragment_name: str) -> moderngl.Program:
         return self.ctx.program(
@@ -637,6 +642,10 @@ class ChessRenderer:
         self.height = max(1, height)
         self.post.resize(self.width, self.height)
         self.ctx.viewport = (0, 0, self.width, self.height)
+        # Invalidate picking cache on resize
+        self._cached_inv_vp = None
+        self._cached_view_hash = None
+        self._cached_proj_hash = None
 
     def on_mouse_move(self, x: float, y: float) -> None:
         self.cursor_x = x
@@ -684,7 +693,19 @@ class ChessRenderer:
         # Use the same convention here so unprojection matches what is rendered.
         view = self.camera.view_matrix().T
         proj = self.camera.projection_matrix(aspect).T
-        inv = np.linalg.inv(proj @ view)
+        
+        # Cache the expensive matrix inverse operation
+        view_hash = hash(view.tobytes())
+        proj_hash = hash(proj.tobytes())
+        
+        if (self._cached_inv_vp is None or 
+            self._cached_view_hash != view_hash or 
+            self._cached_proj_hash != proj_hash):
+            self._cached_inv_vp = np.linalg.inv(proj @ view)
+            self._cached_view_hash = view_hash
+            self._cached_proj_hash = proj_hash
+        
+        inv = self._cached_inv_vp
 
         x_ndc = (2.0 * mouse_x / self.width) - 1.0
         y_ndc = 1.0 - (2.0 * mouse_y / self.height)
