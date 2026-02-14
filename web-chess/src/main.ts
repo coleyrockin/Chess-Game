@@ -329,7 +329,7 @@ function computeStatusText(): string {
 function updateHud(): void {
   const history = game.history();
   const lastMove = history.length > 0 ? history[history.length - 1] : null;
-  const movesPlayed = Math.floor((history.length + 1) / 2);
+  const movesPlayed = Math.ceil(history.length / 2);
   if (lastMove) {
     const lastSide = game.turn() === 'w' ? 'Black' : 'White';
     lastMoveText.textContent = `Last move: ${lastSide} ${lastMove}`;
