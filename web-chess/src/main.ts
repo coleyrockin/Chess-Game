@@ -23,6 +23,8 @@ function requireElement<T extends HTMLElement>(selector: string): T {
 
 const canvas = requireElement<HTMLCanvasElement>('#game-canvas');
 const statusText = requireElement<HTMLParagraphElement>('#status');
+const lastMoveText = requireElement<HTMLParagraphElement>('#last-move');
+const moveCountText = requireElement<HTMLParagraphElement>('#move-count');
 const scoreText = requireElement<HTMLParagraphElement>('#score');
 
 const TILE_SIZE = 1.0;
@@ -325,6 +327,16 @@ function computeStatusText(): string {
 }
 
 function updateHud(): void {
+  const history = game.history();
+  const lastMove = history.length > 0 ? history[history.length - 1] : null;
+  const movesPlayed = Math.ceil(history.length / 2);
+  if (lastMove) {
+    const lastSide = game.turn() === 'w' ? 'Black' : 'White';
+    lastMoveText.textContent = `Last move: ${lastSide} ${lastMove}`;
+  } else {
+    lastMoveText.textContent = 'Last move: --';
+  }
+  moveCountText.textContent = `Moves played: ${movesPlayed}`;
   statusText.textContent = computeStatusText();
   scoreText.textContent = computeScoreText();
 }
