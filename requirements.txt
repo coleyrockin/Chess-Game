@@ -1,2 +1,4 @@
 ursina==5.2.0
 python-chess>=1.999
+screeninfo>=0.8.1
+panda3d-simplepbr>=0.13.1
