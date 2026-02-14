@@ -787,11 +787,11 @@ class ChessRenderer:
         self.camera.update(dt)
         self.motion_blur = max(0.0, self.motion_blur - (dt * 1.8))
 
-        # Update pulsing materials - create new MaterialDef only when necessary
+        # Update pulsing materials by creating new MaterialDef instances
+        # (MaterialDef is frozen/immutable, so in-place updates are not possible)
         for obj, base_mat in self.pulsing_objects:
             pulse = 1.0 + (math.sin((self.elapsed * obj.pulse_speed) + obj.pulse_phase) * obj.pulse_strength)
             emissive = tuple(channel * pulse for channel in base_mat.emissive)
-            # Use replace() for cleaner immutable update if available, else create new
             obj.material = MaterialDef(
                 albedo=base_mat.albedo,
                 metallic=base_mat.metallic,
