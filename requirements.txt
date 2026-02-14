@@ -1,4 +1,5 @@
-ursina==5.2.0
 python-chess>=1.999
-screeninfo>=0.8.1
-panda3d-simplepbr>=0.13.1
+moderngl>=5.10.0
+glfw>=2.7.0
+numpy>=1.24.0
+pyrr>=0.10.3

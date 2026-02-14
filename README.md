@@ -1,28 +1,41 @@
-# Neon City Chess (3D)
+# Neon City Chess (ModernGL)
 
-A stylized 3D chess game built in Python for two local players.
+Cinematic cyberpunk 3D chess with a modern OpenGL renderer in Python.
+
+## Rendering stack
+- ModernGL programmable pipeline
+- GLSL shaders (vertex + fragment)
+- Shadow depth pass + PCF shadow sampling
+- HDR scene framebuffer + bloom blur chain
+- Skybox cubemap reflections
+- Volumetric-style fog and post-processing (FXAA-like smoothing, vignette, film grain, DOF, motion blur)
+
+## Engine architecture
+```
+engine/
+    renderer.py
+    shaders/
+        pbr.vert
+        pbr.frag
+        shadow_depth.vert
+        shadow_depth.frag
+        skybox.vert
+        skybox.frag
+        post_quad.vert
+        bloom_blur.frag
+        final_composite.frag
+    lighting.py
+    materials.py
+    post_processing.py
+    skybox.py
+    camera.py
+    shadows.py
+    fog.py
+```
 
 ## Requirements
 - Python 3.9+
-- Internet access on first install (to download dependencies)
-
-## Why this stack
-- `Ursina`: quick 3D gameplay iteration in Python.
-- `python-chess`: reliable move legality, turn handling, check/checkmate/stalemate logic.
-
-## Current features
-- Floating holographic chessboard above a cyberpunk city
-- Blade Runner-style atmosphere with rain, neon skyline, and wet-street reflections
-- Auto camera orientation by turn (board view flips for active player)
-- Modern OpenGL/Panda3D rendering path
-- Physically based shading (PBR materials)
-- Shadow-capable lighting + HDR bloom + ambient occlusion
-- Volumetric light/fog pass and post-processing stack
-- Click-to-select and click-to-move controls
-- Legal move highlighting
-- Auto-queen pawn promotions
-- Turn + game-state text (check, checkmate, stalemate, draw)
-- Local two-player play on one machine
+- A GPU/driver with OpenGL 3.3 core support
 
 ## Setup
 ```bash
@@ -33,25 +46,25 @@ pip install -r requirements.txt
 python main.py
 ```
 
-If you see a dependency error, run:
-```bash
-pip install -r requirements.txt
-```
-
-## Fast First Launch
+## Fast first launch
 ```bash
 ./first_launch.sh
 ```
 
-The renderer attempts a full modern pipeline first and falls back to a compatibility mode automatically if the GPU/driver cannot run every effect.
-
 ## Controls
-- Click a piece, then click a highlighted target square.
-- Camera is automatic and repositions for the player whose turn it is.
-- `R`: reset game
+- Left-click: select/move piece
+- Right-click drag: orbit camera
+- Mouse wheel: zoom
+- `R`: reset board
+- `Space`: debug quick-move (plays first legal move)
+- `Esc`: quit
 
-## Next upgrades (good for "play with mom")
-- Online private room (invite code)
-- Piece themes (wood, crystal, vaporwave, minimal)
-- Move history + undo
-- Timer options and handicap mode
+## Visual direction
+- Floating chessboard above a neon city
+- Emissive cyan/pink/purple light strips
+- Reflective wet ground and atmospheric rain
+- Auto camera perspective by side-to-move
+
+## Notes
+- This renderer intentionally targets modern OpenGL and shader-based rendering.
+- If your GPU is older and cannot provide OpenGL 3.3 core, startup may fail.
