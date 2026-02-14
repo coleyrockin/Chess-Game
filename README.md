@@ -1,5 +1,8 @@
 # Neon City Chess
 
+[![CI](https://github.com/coleyrockin/Chess-Game/actions/workflows/ci.yml/badge.svg)](https://github.com/coleyrockin/Chess-Game/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 Cinematic two-player chess with a neon cyberpunk style.
 
 This repo currently includes:
@@ -64,6 +67,11 @@ main.py         # Desktop Python entry point
 - The camera is game-directed and side-aware to keep each player oriented.
 - Desktop runs in windowed mode by default.
 - Browser build targets WebGPU when available and falls back to WebGL.
+
+## Quality
+- CI runs on pushes and pull requests for Python quality/security checks and web build validation.
+- Dependabot is configured for GitHub Actions, Python dependencies, and web dependencies.
+- Issue/PR templates and CODEOWNERS are included for consistent collaboration.
 
 ## Contributing
 See `CONTRIBUTING.md`.

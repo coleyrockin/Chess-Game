@@ -1,0 +1,94 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python-quality:
+    name: Python Quality
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pip-audit bandit
+
+      - name: Compile smoke check
+        run: python -m compileall main.py engine game_core
+
+      - name: Logic smoke check
+        run: |
+          python - <<'PY'
+          import chess
+          from game_core.chess_game import ChessGameState
+          from game_core.scoring import PieceScorer
+
+          state = ChessGameState()
+          assert state.turn_status_text() == "White to move"
+
+          state.click_square(chess.parse_square("e2"))
+          moved = state.click_square(chess.parse_square("e4"))
+          assert moved.moved
+
+          state.click_square(chess.parse_square("d7"))
+          state.click_square(chess.parse_square("d5"))
+          state.click_square(chess.parse_square("e4"))
+          captured = state.click_square(chess.parse_square("d5"))
+          assert captured.moved and captured.captured
+
+          snap = PieceScorer.snapshot(state.board)
+          assert snap.white_material == 39
+          assert snap.black_material == 38
+          assert snap.advantage == 1
+          print("python smoke checks passed")
+          PY
+
+      - name: Dependency vulnerability audit
+        run: pip-audit -r requirements.txt
+
+      - name: Static security scan
+        run: bandit -q -r main.py engine game_core -s B311
+
+  web-quality:
+    name: Web Quality
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: web-chess/package-lock.json
+
+      - name: Install web dependencies
+        run: npm ci --prefix web-chess
+
+      - name: Typecheck + build
+        run: npm run build --prefix web-chess
+
+      - name: Production dependency audit
+        run: npm audit --omit=dev --prefix web-chess

@@ -4,6 +4,8 @@ __pycache__/
 *.pyc
 .DS_Store
 *.log
+*.swp
+progress.md
 
 # Unreal Engine generated files
 unreal/NeonCityChessUE/Binaries/
