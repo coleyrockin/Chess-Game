@@ -44,6 +44,10 @@ class CinematicCamera:
         self.focus_target = np.array(look_target, dtype="f4")
         self.eye = np.zeros(3, dtype="f4")
         self.prev_eye = np.zeros(3, dtype="f4")
+        # Pre-allocate arrays for performance
+        self._temp_eye = np.zeros(3, dtype="f4")
+        self._temp_right = np.zeros(3, dtype="f4")
+        self._temp_jitter = np.zeros(3, dtype="f4")
         self.velocity = 0.0
         self.shake = 0.0
         self._noise_phase = 0.0
@@ -53,7 +57,7 @@ class CinematicCamera:
         self.transition_sign = 1.0
 
         self.update(0.016)
-        self.prev_eye = self.eye.copy()
+        self.prev_eye[:] = self.eye
 
     def set_turn_view(self, white_turn: bool) -> None:
         if self.white_side != white_turn:
@@ -81,14 +85,11 @@ class CinematicCamera:
         yaw_r = math.radians(self.state.yaw)
         pitch_r = math.radians(self.state.pitch)
         horizontal = self.state.distance * math.cos(pitch_r)
-        eye = np.array(
-            [
-                self.target[0] + horizontal * math.sin(yaw_r),
-                self.target[1] + self.state.distance * math.sin(pitch_r),
-                self.target[2] + horizontal * math.cos(yaw_r),
-            ],
-            dtype="f4",
-        )
+        
+        # Reuse pre-allocated array instead of creating new one
+        self._temp_eye[0] = self.target[0] + horizontal * math.sin(yaw_r)
+        self._temp_eye[1] = self.target[1] + self.state.distance * math.sin(pitch_r)
+        self._temp_eye[2] = self.target[2] + horizontal * math.cos(yaw_r)
 
         # Turn handoff "drone" motion to make side swap obvious.
         if self.turn_transition > 0.0001:
@@ -97,27 +98,26 @@ class CinematicCamera:
             side_sway = arc * 1.55 * self.transition_sign
             up_lift = arc * 2.1
 
-            right = np.array([math.cos(yaw_r), 0.0, -math.sin(yaw_r)], dtype="f4")
-            eye += right * side_sway
-            eye[1] += up_lift
+            self._temp_right[0] = math.cos(yaw_r)
+            self._temp_right[1] = 0.0
+            self._temp_right[2] = -math.sin(yaw_r)
+            self._temp_eye += self._temp_right * side_sway
+            self._temp_eye[1] += up_lift
             self.turn_transition = max(0.0, self.turn_transition - (dt * 1.65))
 
         if self.shake > 0.0001:
             self._noise_phase += dt * 30.0
-            jitter = np.array(
-                [
-                    math.sin(self._noise_phase * 1.7),
-                    math.cos(self._noise_phase * 2.1) * 0.45,
-                    math.sin(self._noise_phase * 1.3) * 0.65,
-                ],
-                dtype="f4",
-            )
-            eye += jitter * (0.06 * self.shake)
+            self._temp_jitter[0] = math.sin(self._noise_phase * 1.7)
+            self._temp_jitter[1] = math.cos(self._noise_phase * 2.1) * 0.45
+            self._temp_jitter[2] = math.sin(self._noise_phase * 1.3) * 0.65
+            self._temp_eye += self._temp_jitter * (0.06 * self.shake)
             self.shake = max(0.0, self.shake - (dt * 2.2))
 
-        self.eye = eye
-        self.velocity = float(np.linalg.norm(self.eye - self.prev_eye) / max(dt, 1e-5))
-        self.prev_eye = self.eye.copy()
+        # Calculate velocity using single norm calculation
+        self.eye[:] = self._temp_eye
+        delta_norm = np.linalg.norm(self.eye - self.prev_eye)
+        self.velocity = float(delta_norm / max(dt, 1e-5))
+        self.prev_eye[:] = self.eye
 
     def view_matrix(self) -> np.ndarray:
         up = Vector3([0.0, 1.0, 0.0])

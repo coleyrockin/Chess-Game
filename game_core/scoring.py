@@ -36,8 +36,16 @@ class PieceScorer:
 
     @classmethod
     def snapshot(cls, board: chess.Board) -> ScoreSnapshot:
-        white = cls.material_for(board, chess.WHITE)
-        black = cls.material_for(board, chess.BLACK)
+        # Single-pass calculation for both colors to avoid redundant iteration
+        white = 0
+        black = 0
+        for piece in board.piece_map().values():
+            value = PIECE_VALUES.get(piece.piece_type, 0)
+            if piece.color == chess.WHITE:
+                white += value
+            else:
+                black += value
+        
         return ScoreSnapshot(
             white_material=white,
             black_material=black,
