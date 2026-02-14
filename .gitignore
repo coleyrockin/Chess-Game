@@ -3,3 +3,18 @@ __pycache__/
 .pycache/
 *.pyc
 .DS_Store
+
+# Unreal Engine generated files
+unreal/NeonCityChessUE/Binaries/
+unreal/NeonCityChessUE/DerivedDataCache/
+unreal/NeonCityChessUE/Intermediate/
+unreal/NeonCityChessUE/Saved/
+unreal/NeonCityChessUE/*.xcworkspace/
+
+# Keep Unreal project source/config only (avoid publishing bulky template assets)
+unreal/NeonCityChessUE/*
+!unreal/NeonCityChessUE/NeonCityChessUE.uproject
+!unreal/NeonCityChessUE/Source/
+!unreal/NeonCityChessUE/Source/**
+!unreal/NeonCityChessUE/Config/
+!unreal/NeonCityChessUE/Config/**

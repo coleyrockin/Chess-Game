@@ -93,4 +93,4 @@ Scoring system:
 ## Notes
 - This renderer intentionally targets modern OpenGL and shader-based rendering.
 - If your GPU is older and cannot provide OpenGL 3.3 core, startup may fail.
-- Unreal migration handoff lives in `/Users/boydroberts/Documents/projects/Chess Game/unreal/`.
+- Unreal migration handoff lives in `unreal/`.

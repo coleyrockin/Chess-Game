@@ -8,7 +8,7 @@ Vec3 = Tuple[float, float, float]
 class DirectionalLightDef:
     direction: Vec3 = (-0.2, -0.96, -0.18)
     color: Vec3 = (1.0, 0.99, 0.96)
-    intensity: float = 3.6
+    intensity: float = 4.1
 
 
 @dataclass
@@ -38,7 +38,7 @@ class SceneLighting:
     - Turn-biased side lights so current player side is clearer
     """
 
-    ambient_color: Vec3 = (0.13, 0.15, 0.18)
+    ambient_color: Vec3 = (0.1, 0.12, 0.15)
     directional: DirectionalLightDef = field(default_factory=DirectionalLightDef)
     point_lights: List[PointLightDef] = field(default_factory=list)
     spot_lights: List[SpotLightDef] = field(default_factory=list)
@@ -46,29 +46,29 @@ class SceneLighting:
     @staticmethod
     def cyberpunk_defaults(board_height: float) -> "SceneLighting":
         return SceneLighting(
-            ambient_color=(0.13, 0.15, 0.18),
+            ambient_color=(0.1, 0.12, 0.15),
             directional=DirectionalLightDef(
                 direction=(-0.2, -0.96, -0.18),
                 color=(1.0, 0.99, 0.96),
-                intensity=3.6,
+                intensity=4.1,
             ),
             point_lights=[
                 PointLightDef(
                     position=(-5.5, board_height + 2.6, -6.2),
                     color=(0.25, 0.88, 1.0),
-                    intensity=16.0,
+                    intensity=11.0,
                     light_range=26.0,
                 ),
                 PointLightDef(
                     position=(5.5, board_height + 2.6, 6.2),
                     color=(1.0, 0.32, 0.75),
-                    intensity=16.0,
+                    intensity=11.0,
                     light_range=26.0,
                 ),
                 PointLightDef(
                     position=(0.0, board_height + 3.9, 0.0),
                     color=(0.68, 0.55, 1.0),
-                    intensity=10.0,
+                    intensity=7.0,
                     light_range=20.0,
                 ),
             ],
@@ -77,7 +77,7 @@ class SceneLighting:
                     position=(0.0, board_height + 5.4, 0.0),
                     direction=(0.0, -1.0, 0.0),
                     color=(0.58, 0.92, 1.0),
-                    intensity=18.0,
+                    intensity=12.0,
                     cutoff_cos=0.9,
                     light_range=24.0,
                 )
@@ -95,21 +95,21 @@ class SceneLighting:
         # Primary cyan accent on current player side, pink on opponent side.
         if len(self.point_lights) >= 1:
             self.point_lights[0].position = (-5.2, board_height + 2.7, z_side)
-            self.point_lights[0].intensity = 20.0
+            self.point_lights[0].intensity = 13.0
             self.point_lights[0].color = (0.24, 0.88, 1.0)
         if len(self.point_lights) >= 2:
             self.point_lights[1].position = (5.2, board_height + 2.7, z_other)
-            self.point_lights[1].intensity = 14.0
+            self.point_lights[1].intensity = 9.5
             self.point_lights[1].color = (1.0, 0.34, 0.78)
         if len(self.point_lights) >= 3:
             self.point_lights[2].position = (0.0, board_height + 4.0, 0.0)
-            self.point_lights[2].intensity = 9.0
+            self.point_lights[2].intensity = 6.2
             self.point_lights[2].color = (0.64, 0.54, 1.0)
 
         if len(self.spot_lights) >= 1:
             self.spot_lights[0].position = (0.0, board_height + 5.5, z_side * 0.35)
             self.spot_lights[0].direction = (0.0, -1.0, 0.0)
-            self.spot_lights[0].intensity = 19.0
+            self.spot_lights[0].intensity = 10.5
 
     def upload(self, program, max_point_lights: int, max_spot_lights: int) -> None:
         self._set_uniform(program, "uAmbient", self.ambient_color)

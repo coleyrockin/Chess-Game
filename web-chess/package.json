@@ -1,0 +1,20 @@
+{
+  "name": "web-chess",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@babylonjs/core": "^8.26.1",
+    "@babylonjs/materials": "^8.26.1",
+    "chess.js": "^1.4.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2",
+    "vite": "^5.4.10"
+  }
+}

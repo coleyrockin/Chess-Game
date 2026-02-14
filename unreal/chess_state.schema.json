@@ -1,6 +1,4 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://neoncitychess.local/schemas/chess_state.schema.json",
   "title": "NeonCityChessState",
   "type": "object",
   "required": [

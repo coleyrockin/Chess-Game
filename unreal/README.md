@@ -4,8 +4,8 @@ This folder is the Unreal handoff target for Neon City Chess.
 
 ## What is already refactored
 - Chess rules, turn handling, move validation, and scoring are now engine-agnostic in:
-  - `/Users/boydroberts/Documents/projects/Chess Game/game_core/chess_game.py`
-  - `/Users/boydroberts/Documents/projects/Chess Game/game_core/scoring.py`
+  - `game_core/chess_game.py`
+  - `game_core/scoring.py`
 - Python renderer now consumes `game_core` instead of owning chess logic.
 
 ## Recommended UE version
@@ -38,19 +38,19 @@ This is a UE C++ bridge module. It lets Unreal drive board interaction while Pyt
 - `engine/renderer.py` board/piece placement -> `AChessBoardActor` + `AChessPieceActor`
 
 ## State data contract
-- Schema: `/Users/boydroberts/Documents/projects/Chess Game/unreal/chess_state.schema.json`
-- Example: `/Users/boydroberts/Documents/projects/Chess Game/unreal/sample_state.json`
-- Exporter: `/Users/boydroberts/Documents/projects/Chess Game/unreal/export_state.py`
+- Schema: `unreal/chess_state.schema.json`
+- Example: `unreal/sample_state.json`
+- Exporter: `unreal/export_state.py`
 - Exporter supports move replay:
   - `python3 unreal/export_state.py --fen "<fen>" --moves "e2e4,e7e5" --output /tmp/state.json`
 
 ## Wiring steps in Unreal
 1. Create a UE5 **C++** project `NeonCityChessUE`.
-2. Copy `/Users/boydroberts/Documents/projects/Chess Game/unreal/Source/NeonCityChess` into your project `Source/`.
+2. Copy `unreal/Source/NeonCityChess` into your project `Source/`.
 3. In editor (or defaults), set these on `UChessGameStateComponent`:
    - `PythonExecutable` = `python3` (or full venv path)
-   - `ExportScriptPath` = absolute path to `/Users/boydroberts/Documents/projects/Chess Game/unreal/export_state.py`
-   - `WorkingDirectory` = `/Users/boydroberts/Documents/projects/Chess Game`
+   - `ExportScriptPath` = project-relative path to exporter (for example `../export_state.py`)
+   - `WorkingDirectory` = repository root (where `game_core/` exists)
 4. Place in level:
    - Actor with `UChessGameStateComponent`
    - `AChessBoardActor` and assign `GameStateComponent`
