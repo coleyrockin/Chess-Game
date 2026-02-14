@@ -45,15 +45,16 @@ class App:
         self.ctx.gc_mode = "auto"
 
         asset_root = Path(__file__).parent
-        self.renderer = ChessRenderer(self.ctx, DEFAULT_WIDTH, DEFAULT_HEIGHT, asset_root)
+        fb_width, fb_height = glfw.get_framebuffer_size(self.window)
+        self.renderer = ChessRenderer(self.ctx, fb_width, fb_height, asset_root)
         self.last_time = time.perf_counter()
 
         glfw.set_window_user_pointer(self.window, self)
         glfw.set_framebuffer_size_callback(self.window, self._on_resize)
         glfw.set_cursor_pos_callback(self.window, self._on_cursor)
         glfw.set_mouse_button_callback(self.window, self._on_mouse_button)
-        glfw.set_scroll_callback(self.window, self._on_scroll)
         glfw.set_key_callback(self.window, self._on_key)
+        self.last_title = ""
 
     @staticmethod
     def _instance(window) -> "App":
@@ -70,20 +71,16 @@ class App:
     @staticmethod
     def _on_cursor(window, x: float, y: float) -> None:
         app = App._instance(window)
-        app.renderer.on_mouse_move(x, y)
+        fx, fy = app._window_to_framebuffer_coords(x, y)
+        app.renderer.on_mouse_move(fx, fy)
 
     @staticmethod
     def _on_mouse_button(window, button: int, action: int, mods: int) -> None:
         del mods
         app = App._instance(window)
         x, y = glfw.get_cursor_pos(window)
-        app.renderer.on_mouse_button(button, action, x, y)
-
-    @staticmethod
-    def _on_scroll(window, x_offset: float, y_offset: float) -> None:
-        del x_offset
-        app = App._instance(window)
-        app.renderer.on_scroll(y_offset)
+        fx, fy = app._window_to_framebuffer_coords(x, y)
+        app.renderer.on_mouse_button(button, action, fx, fy)
 
     @staticmethod
     def _on_key(window, key: int, scancode: int, action: int, mods: int) -> None:
@@ -103,11 +100,24 @@ class App:
 
                 glfw.poll_events()
                 self.renderer.update(dt)
+                title = f"{WINDOW_TITLE} | {self.renderer.turn_status_text()}"
+                if title != self.last_title:
+                    glfw.set_window_title(self.window, title)
+                    self.last_title = title
                 self.renderer.render()
                 glfw.swap_buffers(self.window)
         finally:
             glfw.destroy_window(self.window)
             glfw.terminate()
+
+    def _window_to_framebuffer_coords(self, x: float, y: float) -> tuple[float, float]:
+        win_w, win_h = glfw.get_window_size(self.window)
+        fb_w, fb_h = glfw.get_framebuffer_size(self.window)
+        if win_w <= 0 or win_h <= 0:
+            return x, y
+        sx = fb_w / win_w
+        sy = fb_h / win_h
+        return x * sx, y * sy
 
 
 def main() -> None:

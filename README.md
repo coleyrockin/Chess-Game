@@ -53,11 +53,14 @@ python main.py
 
 ## Controls
 - Left-click: select/move piece
-- Right-click drag: orbit camera
-- Mouse wheel: zoom
 - `R`: reset board
-- `Space`: debug quick-move (plays first legal move)
 - `Esc`: quit
+
+Camera behavior:
+- Camera is fully automatic and game-directed.
+- Perspective transitions based on turn and piece interaction.
+- No player camera orbit/zoom controls.
+- Game launches in a standard window by default.
 
 ## Visual direction
 - Floating chessboard above a neon city

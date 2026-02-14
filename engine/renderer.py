@@ -4,7 +4,7 @@ import math
 import random
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import chess
 import moderngl
@@ -344,13 +344,9 @@ class ChessRenderer:
 
         self.cursor_x = 0.0
         self.cursor_y = 0.0
-        self.right_dragging = False
-        self.prev_cursor = (0.0, 0.0)
-
         self.camera = CinematicCamera((0.0, self.board_height + 0.25, 0.0))
-        self.camera.set_turn_view(self.board.turn == chess.WHITE)
         self.lighting = SceneLighting.cyberpunk_defaults(self.board_height)
-        self.fog = FogSettings(color=(0.04, 0.06, 0.1), density=0.03, height_falloff=0.14)
+        self.fog = FogSettings(color=(0.04, 0.06, 0.1), density=0.02, height_falloff=0.11)
 
         self.scene_program = self._load_program("pbr.vert", "pbr.frag")
         self.depth_program = self._load_program("shadow_depth.vert", "shadow_depth.frag")
@@ -371,6 +367,7 @@ class ChessRenderer:
         self._build_board()
         self._build_rain()
         self._rebuild_pieces()
+        self._set_turn_camera_pose()
 
     def _load_program(self, vertex_name: str, fragment_name: str) -> moderngl.Program:
         return self.ctx.program(
@@ -603,20 +600,12 @@ class ChessRenderer:
     def on_mouse_move(self, x: float, y: float) -> None:
         self.cursor_x = x
         self.cursor_y = y
-        if self.right_dragging:
-            dx = x - self.prev_cursor[0]
-            dy = y - self.prev_cursor[1]
-            self.camera.orbit(dx, -dy)
-        self.prev_cursor = (x, y)
 
     def on_scroll(self, y_offset: float) -> None:
-        self.camera.zoom(y_offset * 0.8)
+        del y_offset
 
     def on_mouse_button(self, button: int, action: int, x: float, y: float) -> None:
-        # GLFW values: left=0 right=1 press=1 release=0
-        if button == 1:
-            self.right_dragging = action == 1
-            return
+        # GLFW values: left=0 press=1
         if button == 0 and action == 1:
             square = self._pick_square(x, y)
             if square is not None:
@@ -625,29 +614,30 @@ class ChessRenderer:
     def on_key(self, key: int, action: int) -> None:
         if action != 1:
             return
-        # GLFW key codes: R=82, SPACE=32
+        # GLFW key code: R=82
         if key == 82:
             self.board.reset()
             self.selected_square = None
             self.legal_targets.clear()
-            self.camera.focus_on((0.0, self.board_height + 0.25, 0.0))
-            self.camera.set_turn_view(True)
+            self._set_turn_camera_pose()
             self._rebuild_pieces()
             return
-        if key == 32:
-            move = self._first_legal_move()
-            if move is not None:
-                self._commit_move(move)
 
-    def _first_legal_move(self) -> Optional[chess.Move]:
-        for move in self.board.legal_moves:
-            return move
-        return None
+    def _turn_focus_point(self) -> Tuple[float, float, float]:
+        white_turn = self.board.turn == chess.WHITE
+        z_bias = -1.25 if white_turn else 1.25
+        return (0.0, self.board_height + 0.28, z_bias)
+
+    def _set_turn_camera_pose(self) -> None:
+        self.camera.set_turn_view(self.board.turn == chess.WHITE)
+        self.camera.focus_on(self._turn_focus_point())
 
     def _pick_square(self, mouse_x: float, mouse_y: float) -> Optional[int]:
         aspect = self.width / max(1, self.height)
-        view = self.camera.view_matrix()
-        proj = self.camera.projection_matrix(aspect)
+        # Uniform matrices are uploaded in OpenGL column-major order.
+        # Use the same convention here so unprojection matches what is rendered.
+        view = self.camera.view_matrix().T
+        proj = self.camera.projection_matrix(aspect).T
         inv = np.linalg.inv(proj @ view)
 
         x_ndc = (2.0 * mouse_x / self.width) - 1.0
@@ -711,7 +701,7 @@ class ChessRenderer:
         else:
             self.selected_square = None
             self.legal_targets.clear()
-            self.camera.focus_on((0.0, self.board_height + 0.25, 0.0))
+            self._set_turn_camera_pose()
             self._rebuild_pieces()
 
     def _commit_move(self, move: chess.Move) -> None:
@@ -719,12 +709,24 @@ class ChessRenderer:
         self.board.push(move)
         self.selected_square = None
         self.legal_targets.clear()
-        self.camera.focus_on((0.0, self.board_height + 0.25, 0.0))
-        self.camera.set_turn_view(self.board.turn == chess.WHITE)
+        self._set_turn_camera_pose()
         if captured:
             self.camera.add_capture_shake(0.45)
         self.motion_blur = max(self.motion_blur, 0.85)
         self._rebuild_pieces()
+
+    def turn_status_text(self) -> str:
+        if self.board.is_checkmate():
+            winner = "Black" if self.board.turn == chess.WHITE else "White"
+            return f"Checkmate | {winner} wins"
+        if self.board.is_stalemate():
+            return "Stalemate"
+        if self.board.is_insufficient_material() or self.board.is_seventyfive_moves() or self.board.is_fivefold_repetition():
+            return "Draw"
+        turn = "White" if self.board.turn == chess.WHITE else "Black"
+        if self.board.is_check():
+            return f"{turn} to move (Check)"
+        return f"{turn} to move"
 
     def _effective_tile_material(self, square: int) -> MaterialDef:
         if square == self.selected_square:

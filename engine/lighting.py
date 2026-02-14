@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import List, Sequence, Tuple
+from typing import List, Sequence, Tuple, Union
 
 Vec3 = Tuple[float, float, float]
 
@@ -31,7 +31,7 @@ class SpotLightDef:
 
 @dataclass
 class SceneLighting:
-    ambient_color: Vec3 = (0.07, 0.09, 0.12)
+    ambient_color: Vec3 = (0.1, 0.12, 0.16)
     directional: DirectionalLightDef = field(default_factory=DirectionalLightDef)
     point_lights: List[PointLightDef] = field(default_factory=list)
     spot_lights: List[SpotLightDef] = field(default_factory=list)
@@ -39,40 +39,40 @@ class SceneLighting:
     @staticmethod
     def cyberpunk_defaults(board_height: float) -> "SceneLighting":
         return SceneLighting(
-            ambient_color=(0.08, 0.09, 0.13),
+            ambient_color=(0.12, 0.14, 0.18),
             directional=DirectionalLightDef(
-                direction=(-0.45, -0.85, -0.25),
-                color=(0.92, 0.95, 1.0),
-                intensity=2.2,
+                direction=(-0.34, -0.92, -0.2),
+                color=(1.0, 0.98, 0.95),
+                intensity=3.1,
             ),
             point_lights=[
                 PointLightDef(
-                    position=(-5.0, board_height + 2.8, -5.5),
-                    color=(0.35, 0.95, 1.0),
-                    intensity=22.0,
-                    light_range=22.0,
+                    position=(-6.2, board_height + 2.7, -4.8),
+                    color=(0.32, 0.95, 1.0),
+                    intensity=26.0,
+                    light_range=28.0,
                 ),
                 PointLightDef(
-                    position=(5.8, board_height + 2.6, 5.0),
-                    color=(1.0, 0.35, 0.82),
-                    intensity=24.0,
+                    position=(6.2, board_height + 2.7, 4.8),
+                    color=(1.0, 0.32, 0.78),
+                    intensity=26.0,
+                    light_range=28.0,
+                ),
+                PointLightDef(
+                    position=(0.0, board_height + 4.2, 0.0),
+                    color=(0.72, 0.48, 1.0),
+                    intensity=18.0,
                     light_range=24.0,
-                ),
-                PointLightDef(
-                    position=(0.0, board_height + 3.8, 0.0),
-                    color=(0.78, 0.45, 1.0),
-                    intensity=16.0,
-                    light_range=20.0,
                 ),
             ],
             spot_lights=[
                 SpotLightDef(
-                    position=(0.0, board_height + 5.2, 0.0),
+                    position=(0.0, board_height + 5.6, 0.0),
                     direction=(0.0, -1.0, 0.0),
                     color=(0.42, 0.92, 1.0),
-                    intensity=20.0,
-                    cutoff_cos=0.92,
-                    light_range=20.0,
+                    intensity=24.0,
+                    cutoff_cos=0.89,
+                    light_range=24.0,
                 )
             ],
         )
@@ -110,6 +110,6 @@ class SceneLighting:
                 self._set_uniform(program, f"uSpotLights[{i}].intensity", 0.0)
 
     @staticmethod
-    def _set_uniform(program, name: str, value: Sequence[float] | float | int) -> None:
+    def _set_uniform(program, name: str, value: Union[Sequence[float], float, int]) -> None:
         if name in program:
             program[name].value = value

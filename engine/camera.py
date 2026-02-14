@@ -44,9 +44,10 @@ class CinematicCamera:
         self.prev_eye = self.eye.copy()
 
     def set_turn_view(self, white_turn: bool) -> None:
-        self.target_state.yaw = 45.0 if white_turn else 225.0
-        self.target_state.pitch = 33.0
-        self.target_state.distance = 18.0
+        # White sees from White's side, Black from Black's side.
+        self.target_state.yaw = 225.0 if white_turn else 45.0
+        self.target_state.pitch = 30.0
+        self.target_state.distance = 16.0
 
     def focus_on(self, point: tuple[float, float, float]) -> None:
         self.focus_target = np.array(point, dtype="f4")

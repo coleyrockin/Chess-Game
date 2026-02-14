@@ -183,7 +183,7 @@ class SkyboxPass:
             t = np.linspace(0.0, 1.0, 128, dtype=np.float32).reshape(128, 1, 1)
             gradient = (top * (1.0 - t)) + (bottom * t)
             gradient = np.repeat(gradient, 128, axis=1).astype(np.uint8)
-            self.cubemap.write(gradient.tobytes(), face=face)
+            self.cubemap.write(face, gradient.tobytes())
 
     def render(self, view: np.ndarray, projection: np.ndarray) -> None:
         view_no_translation = np.array(view, dtype="f4", copy=True)
@@ -191,11 +191,10 @@ class SkyboxPass:
         view_no_translation[3, 1] = 0.0
         view_no_translation[3, 2] = 0.0
 
-        old_depth_func = self.ctx.depth_func
         self.ctx.depth_func = "<="
         self.cubemap.use(location=0)
         self.program["uSkybox"].value = 0
         self.program["uView"].write(view_no_translation.astype("f4").tobytes())
         self.program["uProjection"].write(projection.astype("f4").tobytes())
         self.vao.render()
-        self.ctx.depth_func = old_depth_func
+        self.ctx.depth_func = "<"
