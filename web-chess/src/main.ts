@@ -1,6 +1,7 @@
 import { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh';
 import { ArcRotateCamera } from '@babylonjs/core/Cameras/arcRotateCamera';
-import { Color3, Color4, Quaternion, Vector3 } from '@babylonjs/core/Maths/math';
+import { Color3, Color4, Vector3 } from '@babylonjs/core/Maths/math';
+import { AbstractEngine } from '@babylonjs/core/Engines/abstractEngine';
 import { Engine } from '@babylonjs/core/Engines/engine';
 import { WebGPUEngine } from '@babylonjs/core/Engines/webgpuEngine';
 import { GlowLayer } from '@babylonjs/core/Layers/glowLayer';
@@ -10,15 +11,19 @@ import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import { PointerEventTypes } from '@babylonjs/core/Events/pointerEvents';
 import { Scene } from '@babylonjs/core/scene';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
-import { Chess } from 'chess.js';
+import { Chess, type Square } from 'chess.js';
 
-const canvas = document.querySelector<HTMLCanvasElement>('#game-canvas');
-const statusText = document.querySelector<HTMLParagraphElement>('#status');
-const scoreText = document.querySelector<HTMLParagraphElement>('#score');
-
-if (!canvas || !statusText || !scoreText) {
-  throw new Error('Required DOM nodes are missing.');
+function requireElement<T extends HTMLElement>(selector: string): T {
+  const element = document.querySelector<T>(selector);
+  if (!element) {
+    throw new Error(`Missing required DOM element: ${selector}`);
+  }
+  return element;
 }
+
+const canvas = requireElement<HTMLCanvasElement>('#game-canvas');
+const statusText = requireElement<HTMLParagraphElement>('#status');
+const scoreText = requireElement<HTMLParagraphElement>('#score');
 
 const TILE_SIZE = 1.0;
 const PIECE_BASE_Y = 0.35;
@@ -57,7 +62,7 @@ let legalTargets = new Set<string>();
 let elapsed = 0;
 let cameraAlphaTarget = 0;
 
-let engine: Engine;
+let engine: AbstractEngine;
 let scene: Scene;
 let camera: ArcRotateCamera;
 
@@ -83,7 +88,7 @@ function isLightTile(file: number, rank: number): boolean {
   return (file + rank) % 2 === 0;
 }
 
-async function createEngine(target: HTMLCanvasElement): Promise<Engine> {
+async function createEngine(target: HTMLCanvasElement): Promise<AbstractEngine> {
   if ((navigator as Navigator & { gpu?: unknown }).gpu) {
     try {
       const webgpu = new WebGPUEngine(target, {
@@ -347,8 +352,9 @@ function refreshHighlights(pulse: number): void {
 }
 
 function legalTargetsFrom(square: string): Set<string> {
+  const fromSquare = square as Square;
   const targets = new Set<string>();
-  for (const move of game.moves({ square, verbose: true })) {
+  for (const move of game.moves({ square: fromSquare, verbose: true })) {
     targets.add(move.to);
   }
   return targets;
@@ -360,7 +366,8 @@ function clearSelection(): void {
 }
 
 function handleSquareClick(square: string): void {
-  const clickedPiece = game.get(square as Parameters<Chess['get']>[0]);
+  const boardSquare = square as Square;
+  const clickedPiece = game.get(boardSquare);
   const turn = game.turn();
 
   if (!selectedSquare) {
@@ -383,8 +390,8 @@ function handleSquareClick(square: string): void {
   }
 
   const move = game.move({
-    from: selectedSquare,
-    to: square,
+    from: selectedSquare as Square,
+    to: boardSquare,
     promotion: 'q',
   });
 

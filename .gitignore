@@ -3,6 +3,7 @@ __pycache__/
 .pycache/
 *.pyc
 .DS_Store
+*.log
 
 # Unreal Engine generated files
 unreal/NeonCityChessUE/Binaries/
@@ -18,3 +19,11 @@ unreal/NeonCityChessUE/*
 !unreal/NeonCityChessUE/Source/**
 !unreal/NeonCityChessUE/Config/
 !unreal/NeonCityChessUE/Config/**
+
+# Web app
+web-chess/node_modules/
+web-chess/dist/
+web-chess/.vite/
+web-chess/.cache/
+web-chess/*.log
+web-chess/*.tsbuildinfo

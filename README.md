@@ -1,59 +1,24 @@
-# Neon City Chess (ModernGL)
+# Neon City Chess
 
-Cinematic cyberpunk 3D chess with a modern OpenGL renderer in Python.
+Cinematic two-player chess with a neon cyberpunk style.
 
-## Rendering stack
-- ModernGL programmable pipeline
-- GLSL shaders (vertex + fragment)
-- Shadow depth pass + PCF shadow sampling
-- HDR scene framebuffer + bloom blur chain
-- Skybox cubemap reflections
-- Volumetric-style fog and post-processing (FXAA-like smoothing, vignette, film grain, DOF, motion blur)
+This repo currently includes:
+- A desktop Python/ModernGL game (`main.py`)
+- A browser TypeScript 3D game (`web-chess/`) using Babylon.js and `chess.js`
+- Unreal handoff/reference files in `unreal/`
 
-## Engine architecture
-```
-engine/
-    renderer.py
-    shaders/
-        pbr.vert
-        pbr.frag
-        shadow_depth.vert
-        shadow_depth.frag
-        skybox.vert
-        skybox.frag
-        post_quad.vert
-        bloom_blur.frag
-        final_composite.frag
-    lighting.py
-    materials.py
-    scoring.py
-    post_processing.py
-    skybox.py
-    camera.py
-    shadows.py
-    fog.py
+## Highlights
+- Shader-driven 3D rendering and post-processing
+- Turn-based automatic camera (no player camera controls)
+- Local two-player chess rules and legal move validation
+- Material score/evaluation display (`P=1, N=3, B=3, R=5, Q=9`)
+- Neon city visual direction with bloom/fog/reflections
 
-game_core/
-    chess_game.py
-    scoring.py
-
-unreal/
-    README.md
-    chess_state.schema.json
-    sample_state.json
-    export_state.py
-    Source/
-        NeonCityChess/
-            NeonCityChess.Build.cs
-            Public/
-            Private/
-```
-
-## Requirements
+## Quick Start (Desktop Python)
+Requirements:
 - Python 3.9+
-- A GPU/driver with OpenGL 3.3 core support
+- OpenGL 3.3+ compatible GPU/driver
 
-## Setup
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
@@ -62,35 +27,49 @@ pip install -r requirements.txt
 python main.py
 ```
 
-## Fast first launch
+Or:
+
 ```bash
 ./first_launch.sh
 ```
 
+## Quick Start (Browser TypeScript)
+Requirements:
+- Node.js 20+
+
+```bash
+cd web-chess
+npm install
+npm run dev
+```
+
+Open the printed local URL (default `http://localhost:5173`).
+
 ## Controls
-- Left-click: select/move piece
-- `R`: reset board
-- `Esc`: quit
+- Left click: select a piece
+- Left click a highlighted square: move piece
+- `R`: reset board (desktop build)
+- `Esc`: quit (desktop build)
 
-Camera behavior:
-- Camera is fully automatic and game-directed ("personal drone" per side).
-- Clear side-to-move perspective swap on every turn.
-- Board focus shifts to the active side's king area, then to selected pieces.
-- No player camera orbit/zoom controls.
-- Game launches in a standard window by default.
+## Project Layout
+```text
+engine/         # Python rendering systems (camera, lighting, fog, post FX, shaders)
+game_core/      # Python chess game state + scoring
+web-chess/      # Browser client (TypeScript + Babylon.js)
+unreal/         # Unreal integration/handoff files
+main.py         # Desktop Python entry point
+```
 
-Scoring system:
-- Built-in material scoring (`P=1, N=3, B=3, R=5, Q=9`).
-- Live score appears in the window title:
-  `Mat W:x B:y | Caps W:x B:y | White +n / Black +n / Even`.
+## Development Notes
+- The camera is game-directed and side-aware to keep each player oriented.
+- Desktop runs in windowed mode by default.
+- Browser build targets WebGPU when available and falls back to WebGL.
 
-## Visual direction
-- Floating chessboard above a neon city
-- Emissive cyan/pink/purple light strips
-- Reflective wet ground and atmospheric rain
-- Auto camera perspective by side-to-move
+## Contributing
+See `CONTRIBUTING.md`.
 
-## Notes
-- This renderer intentionally targets modern OpenGL and shader-based rendering.
-- If your GPU is older and cannot provide OpenGL 3.3 core, startup may fail.
-- Unreal migration handoff lives in `unreal/`.
+## Security
+See `SECURITY.md`.
+
+## License
+MIT License. See `LICENSE`.

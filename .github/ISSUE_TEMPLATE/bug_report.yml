@@ -1,0 +1,48 @@
+name: Bug report
+description: Report a reproducible bug in gameplay, rendering, or controls
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing a bug. Please include enough detail to reproduce the issue.
+  - type: textarea
+    id: what_happened
+    attributes:
+      label: What happened?
+      description: Describe the bug and expected behavior.
+      placeholder: "When I click a legal target square, the piece does not move..."
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Launch app
+        2. Select white pawn at e2
+        3. Click e4
+    validations:
+      required: true
+  - type: dropdown
+    id: runtime
+    attributes:
+      label: Runtime
+      options:
+        - Desktop (Python/ModernGL)
+        - Browser (TypeScript/Babylon)
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, GPU, browser (if web)
+      placeholder: "macOS 14.6, Apple M2, Chrome 121"
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs/screenshots
+      description: Paste relevant logs or attach screenshots.
+      render: shell
