@@ -47,13 +47,16 @@ class ChessGameState:
             self._select_square(square)
             return GameUpdate(selection_changed=True, focus_square=square)
 
+        # Cache legal moves to avoid multiple expensive generations
+        legal_moves = self.board.legal_moves
+        
         move = chess.Move(self.selected_square, square)
-        if move not in self.board.legal_moves:
+        if move not in legal_moves:
             selected_piece = self.board.piece_at(self.selected_square)
             if selected_piece and selected_piece.piece_type == chess.PAWN and chess.square_rank(square) in (0, 7):
                 move = chess.Move(self.selected_square, square, promotion=chess.QUEEN)
 
-        if move in self.board.legal_moves:
+        if move in legal_moves:
             captured = self.board.piece_at(move.to_square) is not None or self.board.is_en_passant(move)
             self.board.push(move)
             self.selected_square = None

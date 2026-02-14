@@ -23,6 +23,253 @@ from .skybox import SkyboxPass
 MAX_POINT_LIGHTS = 8
 MAX_SPOT_LIGHTS = 2
 
+# Module-level constants for geometry to avoid repeated allocations
+_CUBE_VERTICES = np.array(
+    [
+        # +Z
+        -0.5,
+        -0.5,
+        0.5,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.5,
+        -0.5,
+        0.5,
+        0.0,
+        0.0,
+        1.0,
+        1.0,
+        0.0,
+        0.5,
+        0.5,
+        0.5,
+        0.0,
+        0.0,
+        1.0,
+        1.0,
+        1.0,
+        -0.5,
+        0.5,
+        0.5,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        1.0,
+        # -Z
+        0.5,
+        -0.5,
+        -0.5,
+        0.0,
+        0.0,
+        -1.0,
+        0.0,
+        0.0,
+        -0.5,
+        -0.5,
+        -0.5,
+        0.0,
+        0.0,
+        -1.0,
+        1.0,
+        0.0,
+        -0.5,
+        0.5,
+        -0.5,
+        0.0,
+        0.0,
+        -1.0,
+        1.0,
+        1.0,
+        0.5,
+        0.5,
+        -0.5,
+        0.0,
+        0.0,
+        -1.0,
+        0.0,
+        1.0,
+        # +X
+        0.5,
+        -0.5,
+        0.5,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.5,
+        -0.5,
+        -0.5,
+        1.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.5,
+        0.5,
+        -0.5,
+        1.0,
+        0.0,
+        0.0,
+        1.0,
+        1.0,
+        0.5,
+        0.5,
+        0.5,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        # -X
+        -0.5,
+        -0.5,
+        -0.5,
+        -1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -0.5,
+        -0.5,
+        0.5,
+        -1.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        -0.5,
+        0.5,
+        0.5,
+        -1.0,
+        0.0,
+        0.0,
+        1.0,
+        1.0,
+        -0.5,
+        0.5,
+        -0.5,
+        -1.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        # +Y
+        -0.5,
+        0.5,
+        0.5,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.5,
+        0.5,
+        0.5,
+        0.0,
+        1.0,
+        0.0,
+        1.0,
+        0.0,
+        0.5,
+        0.5,
+        -0.5,
+        0.0,
+        1.0,
+        0.0,
+        1.0,
+        1.0,
+        -0.5,
+        0.5,
+        -0.5,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        1.0,
+        # -Y
+        -0.5,
+        -0.5,
+        -0.5,
+        0.0,
+        -1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.5,
+        -0.5,
+        -0.5,
+        0.0,
+        -1.0,
+        0.0,
+        1.0,
+        0.0,
+        0.5,
+        -0.5,
+        0.5,
+        0.0,
+        -1.0,
+        0.0,
+        1.0,
+        1.0,
+        -0.5,
+        -0.5,
+        0.5,
+        0.0,
+        -1.0,
+        0.0,
+        0.0,
+        1.0,
+    ],
+    dtype="f4",
+)
+
+_CUBE_INDICES = np.array(
+    [
+        0,
+        1,
+        2,
+        0,
+        2,
+        3,
+        4,
+        5,
+        6,
+        4,
+        6,
+        7,
+        8,
+        9,
+        10,
+        8,
+        10,
+        11,
+        12,
+        13,
+        14,
+        12,
+        14,
+        15,
+        16,
+        17,
+        18,
+        16,
+        18,
+        19,
+        20,
+        21,
+        22,
+        20,
+        22,
+        23,
+    ],
+    dtype="i4",
+)
+
 
 @dataclass
 class MeshBundle:
@@ -75,252 +322,8 @@ def _model_matrix(
 
 
 def _cube_geometry() -> Tuple[np.ndarray, np.ndarray]:
-    # position xyz, normal xyz, uv
-    vertices = np.array(
-        [
-            # +Z
-            -0.5,
-            -0.5,
-            0.5,
-            0.0,
-            0.0,
-            1.0,
-            0.0,
-            0.0,
-            0.5,
-            -0.5,
-            0.5,
-            0.0,
-            0.0,
-            1.0,
-            1.0,
-            0.0,
-            0.5,
-            0.5,
-            0.5,
-            0.0,
-            0.0,
-            1.0,
-            1.0,
-            1.0,
-            -0.5,
-            0.5,
-            0.5,
-            0.0,
-            0.0,
-            1.0,
-            0.0,
-            1.0,
-            # -Z
-            0.5,
-            -0.5,
-            -0.5,
-            0.0,
-            0.0,
-            -1.0,
-            0.0,
-            0.0,
-            -0.5,
-            -0.5,
-            -0.5,
-            0.0,
-            0.0,
-            -1.0,
-            1.0,
-            0.0,
-            -0.5,
-            0.5,
-            -0.5,
-            0.0,
-            0.0,
-            -1.0,
-            1.0,
-            1.0,
-            0.5,
-            0.5,
-            -0.5,
-            0.0,
-            0.0,
-            -1.0,
-            0.0,
-            1.0,
-            # +X
-            0.5,
-            -0.5,
-            0.5,
-            1.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.5,
-            -0.5,
-            -0.5,
-            1.0,
-            0.0,
-            0.0,
-            1.0,
-            0.0,
-            0.5,
-            0.5,
-            -0.5,
-            1.0,
-            0.0,
-            0.0,
-            1.0,
-            1.0,
-            0.5,
-            0.5,
-            0.5,
-            1.0,
-            0.0,
-            0.0,
-            0.0,
-            1.0,
-            # -X
-            -0.5,
-            -0.5,
-            -0.5,
-            -1.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            -0.5,
-            -0.5,
-            0.5,
-            -1.0,
-            0.0,
-            0.0,
-            1.0,
-            0.0,
-            -0.5,
-            0.5,
-            0.5,
-            -1.0,
-            0.0,
-            0.0,
-            1.0,
-            1.0,
-            -0.5,
-            0.5,
-            -0.5,
-            -1.0,
-            0.0,
-            0.0,
-            0.0,
-            1.0,
-            # +Y
-            -0.5,
-            0.5,
-            0.5,
-            0.0,
-            1.0,
-            0.0,
-            0.0,
-            0.0,
-            0.5,
-            0.5,
-            0.5,
-            0.0,
-            1.0,
-            0.0,
-            1.0,
-            0.0,
-            0.5,
-            0.5,
-            -0.5,
-            0.0,
-            1.0,
-            0.0,
-            1.0,
-            1.0,
-            -0.5,
-            0.5,
-            -0.5,
-            0.0,
-            1.0,
-            0.0,
-            0.0,
-            1.0,
-            # -Y
-            -0.5,
-            -0.5,
-            -0.5,
-            0.0,
-            -1.0,
-            0.0,
-            0.0,
-            0.0,
-            0.5,
-            -0.5,
-            -0.5,
-            0.0,
-            -1.0,
-            0.0,
-            1.0,
-            0.0,
-            0.5,
-            -0.5,
-            0.5,
-            0.0,
-            -1.0,
-            0.0,
-            1.0,
-            1.0,
-            -0.5,
-            -0.5,
-            0.5,
-            0.0,
-            -1.0,
-            0.0,
-            0.0,
-            1.0,
-        ],
-        dtype="f4",
-    )
-    indices = np.array(
-        [
-            0,
-            1,
-            2,
-            0,
-            2,
-            3,
-            4,
-            5,
-            6,
-            4,
-            6,
-            7,
-            8,
-            9,
-            10,
-            8,
-            10,
-            11,
-            12,
-            13,
-            14,
-            12,
-            14,
-            15,
-            16,
-            17,
-            18,
-            16,
-            18,
-            19,
-            20,
-            21,
-            22,
-            20,
-            22,
-            23,
-        ],
-        dtype="i4",
-    )
-    return vertices, indices
+    # Return pre-allocated module-level constants to avoid repeated allocations
+    return _CUBE_VERTICES, _CUBE_INDICES
 
 
 class ChessRenderer:
@@ -368,12 +371,38 @@ class ChessRenderer:
         self._build_rain()
         self._rebuild_pieces()
         self._set_turn_camera_pose()
+        
+        # Cache uniform locations for render loop performance
+        self._cache_uniform_locations()
 
     def _load_program(self, vertex_name: str, fragment_name: str) -> moderngl.Program:
         return self.ctx.program(
             vertex_shader=_read_text(self.shader_dir / vertex_name),
             fragment_shader=_read_text(self.shader_dir / fragment_name),
         )
+
+    def _cache_uniform_locations(self) -> None:
+        """Cache uniform locations to avoid string lookups in render loop."""
+        prog = self.scene_program
+        self.u_model = prog.get("uModel", None)
+        self.u_view = prog.get("uView", None)
+        self.u_projection = prog.get("uProjection", None)
+        self.u_light_space = prog.get("uLightSpaceMatrix", None)
+        self.u_view_pos = prog.get("uViewPos", None)
+        self.u_time = prog.get("uTime", None)
+        self.u_shadow_map = prog.get("uShadowMap", None)
+        self.u_skybox = prog.get("uSkybox", None)
+        
+        # Material uniforms
+        self.u_mat_albedo = prog.get("uMaterial.albedo", None)
+        self.u_mat_metallic = prog.get("uMaterial.metallic", None)
+        self.u_mat_roughness = prog.get("uMaterial.roughness", None)
+        self.u_mat_specular = prog.get("uMaterial.specular", None)
+        self.u_mat_emissive = prog.get("uMaterial.emissive", None)
+        
+        # Depth program uniforms
+        self.depth_u_model = self.depth_program.get("uModel", None)
+        self.depth_u_light_space = self.depth_program.get("uLightSpaceMatrix", None)
 
     def _build_meshes(self) -> Dict[str, MeshBundle]:
         vertices, indices = _cube_geometry()
@@ -737,9 +766,11 @@ class ChessRenderer:
         self.camera.update(dt)
         self.motion_blur = max(0.0, self.motion_blur - (dt * 1.8))
 
+        # Update pulsing materials - create new MaterialDef only when necessary
         for obj, base_mat in self.pulsing_objects:
             pulse = 1.0 + (math.sin((self.elapsed * obj.pulse_speed) + obj.pulse_phase) * obj.pulse_strength)
             emissive = tuple(channel * pulse for channel in base_mat.emissive)
+            # Use replace() for cleaner immutable update if available, else create new
             obj.material = MaterialDef(
                 albedo=base_mat.albedo,
                 metallic=base_mat.metallic,
@@ -785,8 +816,8 @@ class ChessRenderer:
 
     def _render_shadow_pass(self) -> None:
         self.shadow_mapper.begin()
-        if "uLightSpaceMatrix" in self.depth_program:
-            self.depth_program["uLightSpaceMatrix"].write(self.shadow_mapper.light_space.astype("f4").tobytes())
+        if self.depth_u_light_space is not None:
+            self.depth_u_light_space.write(self.shadow_mapper.light_space.astype("f4").tobytes())
 
         for obj in self.static_objects:
             if obj.cast_shadow:
@@ -800,27 +831,26 @@ class ChessRenderer:
         self.shadow_mapper.end((self.width, self.height))
 
     def _render_scene_pass(self, view: np.ndarray, projection: np.ndarray) -> None:
-        prog = self.scene_program
-        if "uView" in prog:
-            prog["uView"].write(view.astype("f4").tobytes())
-        if "uProjection" in prog:
-            prog["uProjection"].write(projection.astype("f4").tobytes())
-        if "uLightSpaceMatrix" in prog:
-            prog["uLightSpaceMatrix"].write(self.shadow_mapper.light_space.astype("f4").tobytes())
-        if "uViewPos" in prog:
-            prog["uViewPos"].value = tuple(self.camera.eye.tolist())
-        if "uTime" in prog:
-            prog["uTime"].value = self.elapsed
+        if self.u_view is not None:
+            self.u_view.write(view.astype("f4").tobytes())
+        if self.u_projection is not None:
+            self.u_projection.write(projection.astype("f4").tobytes())
+        if self.u_light_space is not None:
+            self.u_light_space.write(self.shadow_mapper.light_space.astype("f4").tobytes())
+        if self.u_view_pos is not None:
+            self.u_view_pos.value = tuple(self.camera.eye.tolist())
+        if self.u_time is not None:
+            self.u_time.value = self.elapsed
 
-        self.lighting.upload(prog, MAX_POINT_LIGHTS, MAX_SPOT_LIGHTS)
-        self.fog.upload(prog)
+        self.lighting.upload(self.scene_program, MAX_POINT_LIGHTS, MAX_SPOT_LIGHTS)
+        self.fog.upload(self.scene_program)
 
         self.shadow_mapper.depth_texture.use(location=0)
         self.skybox.cubemap.use(location=1)
-        if "uShadowMap" in prog:
-            prog["uShadowMap"].value = 0
-        if "uSkybox" in prog:
-            prog["uSkybox"].value = 1
+        if self.u_shadow_map is not None:
+            self.u_shadow_map.value = 0
+        if self.u_skybox is not None:
+            self.u_skybox.value = 1
 
         for obj in self.static_objects:
             self._draw_scene_object(obj, obj.material)
@@ -833,24 +863,23 @@ class ChessRenderer:
 
     def _draw_shadow_object(self, obj: RenderObject) -> None:
         mesh = self.meshes[obj.mesh]
-        if "uModel" in self.depth_program:
-            self.depth_program["uModel"].write(obj.model.astype("f4").tobytes())
+        if self.depth_u_model is not None:
+            self.depth_u_model.write(obj.model.astype("f4").tobytes())
         mesh.vao_shadow.render()
 
     def _draw_scene_object(self, obj: RenderObject, material: MaterialDef) -> None:
         mesh = self.meshes[obj.mesh]
-        prog = self.scene_program
-        if "uModel" in prog:
-            prog["uModel"].write(obj.model.astype("f4").tobytes())
+        if self.u_model is not None:
+            self.u_model.write(obj.model.astype("f4").tobytes())
 
-        if "uMaterial.albedo" in prog:
-            prog["uMaterial.albedo"].value = material.albedo
-        if "uMaterial.metallic" in prog:
-            prog["uMaterial.metallic"].value = material.metallic
-        if "uMaterial.roughness" in prog:
-            prog["uMaterial.roughness"].value = material.roughness
-        if "uMaterial.specular" in prog:
-            prog["uMaterial.specular"].value = material.specular
-        if "uMaterial.emissive" in prog:
-            prog["uMaterial.emissive"].value = material.emissive
+        if self.u_mat_albedo is not None:
+            self.u_mat_albedo.value = material.albedo
+        if self.u_mat_metallic is not None:
+            self.u_mat_metallic.value = material.metallic
+        if self.u_mat_roughness is not None:
+            self.u_mat_roughness.value = material.roughness
+        if self.u_mat_specular is not None:
+            self.u_mat_specular.value = material.specular
+        if self.u_mat_emissive is not None:
+            self.u_mat_emissive.value = material.emissive
         mesh.vao_scene.render()

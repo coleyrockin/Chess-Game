@@ -7,6 +7,38 @@ def _read_text(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
+# Module-level constant for quad geometry to avoid repeated allocations
+_QUAD_VERTICES = np.array(
+    [
+        -1.0,
+        -1.0,
+        0.0,
+        0.0,
+        1.0,
+        -1.0,
+        1.0,
+        0.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        -1.0,
+        -1.0,
+        0.0,
+        0.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        -1.0,
+        1.0,
+        0.0,
+        1.0,
+    ],
+    dtype="f4",
+)
+
+
 class PostProcessingPipeline:
     def __init__(self, ctx, shader_dir: Path, width: int, height: int) -> None:
         self.ctx = ctx
@@ -23,36 +55,8 @@ class PostProcessingPipeline:
             fragment_shader=_read_text(shader_dir / "final_composite.frag"),
         )
 
-        quad = np.array(
-            [
-                -1.0,
-                -1.0,
-                0.0,
-                0.0,
-                1.0,
-                -1.0,
-                1.0,
-                0.0,
-                1.0,
-                1.0,
-                1.0,
-                1.0,
-                -1.0,
-                -1.0,
-                0.0,
-                0.0,
-                1.0,
-                1.0,
-                1.0,
-                1.0,
-                -1.0,
-                1.0,
-                0.0,
-                1.0,
-            ],
-            dtype="f4",
-        )
-        self.quad_vbo = self.ctx.buffer(quad.tobytes())
+        # Use pre-allocated module-level constant
+        self.quad_vbo = self.ctx.buffer(_QUAD_VERTICES.tobytes())
         self.blur_vao = self.ctx.vertex_array(
             self.blur_program,
             [(self.quad_vbo, "2f 2f", "in_position", "in_uv")],
