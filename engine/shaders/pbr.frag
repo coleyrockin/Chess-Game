@@ -198,12 +198,16 @@ void main() {
 
     float rainFlicker = 0.96 + 0.04 * sin((vWorldPos.x + vWorldPos.z + uTime * 3.0) * 1.7);
     vec3 colorOut = (ambient + direct + pointAccum + spotAccum + reflection) * rainFlicker;
+    float rim = pow(1.0 - max(dot(N, V), 0.0), 2.2);
+    vec3 rimLight = uDirLight.color * rim * (0.08 + uMaterial.specular * 0.06);
+    colorOut += rimLight;
     colorOut += uMaterial.emissive;
 
     float dist = length(uViewPos - vWorldPos);
     float heightFactor = clamp(exp(-max(vWorldPos.y - 0.25, 0.0) * uFogHeightFalloff), 0.0, 1.0);
     float fogAmount = 1.0 - exp(-dist * uFogDensity);
     fogAmount *= heightFactor;
+    fogAmount = clamp(fogAmount * 0.82, 0.0, 1.0);
 
     vec3 fogged = mix(colorOut, uFogColor, clamp(fogAmount, 0.0, 1.0));
     fragColor = vec4(fogged, 1.0);

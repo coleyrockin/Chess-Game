@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://neoncitychess.local/schemas/chess_state.schema.json",
+  "title": "NeonCityChessState",
+  "type": "object",
+  "required": [
+    "fen",
+    "turn",
+    "selected_square",
+    "legal_targets",
+    "is_game_over",
+    "status_text",
+    "score_text",
+    "legal_moves_uci"
+  ],
+  "properties": {
+    "fen": {
+      "type": "string",
+      "description": "Full FEN string for current board state."
+    },
+    "turn": {
+      "type": "string",
+      "enum": ["white", "black"]
+    },
+    "selected_square": {
+      "type": ["string", "null"],
+      "pattern": "^[a-h][1-8]$"
+    },
+    "legal_targets": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-h][1-8]$"
+      }
+    },
+    "is_game_over": {
+      "type": "boolean"
+    },
+    "status_text": {
+      "type": "string"
+    },
+    "score_text": {
+      "type": "string"
+    },
+    "legal_moves_uci": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "additionalProperties": false
+}

@@ -24,12 +24,19 @@ def _normalize(v: np.ndarray) -> np.ndarray:
 
 @dataclass
 class CameraState:
-    yaw: float = 45.0
-    pitch: float = 33.0
-    distance: float = 18.0
+    yaw: float = 180.0
+    pitch: float = 27.5
+    distance: float = 14.0
 
 
 class CinematicCamera:
+    """
+    Game-directed camera that behaves like a personal drone for each player.
+
+    Turn changes trigger a visible side swap with a short cinematic arc.
+    The player never controls orbit/zoom directly.
+    """
+
     def __init__(self, look_target: tuple[float, float, float]) -> None:
         self.state = CameraState()
         self.target_state = CameraState()
@@ -40,14 +47,24 @@ class CinematicCamera:
         self.velocity = 0.0
         self.shake = 0.0
         self._noise_phase = 0.0
+
+        self.white_side = True
+        self.turn_transition = 0.0
+        self.transition_sign = 1.0
+
         self.update(0.016)
         self.prev_eye = self.eye.copy()
 
     def set_turn_view(self, white_turn: bool) -> None:
-        # White sees from White's side, Black from Black's side.
-        self.target_state.yaw = 225.0 if white_turn else 45.0
-        self.target_state.pitch = 30.0
-        self.target_state.distance = 16.0
+        if self.white_side != white_turn:
+            self.turn_transition = 1.0
+            self.transition_sign = 1.0 if white_turn else -1.0
+            self.white_side = white_turn
+
+        # Online chess convention: player sees from their own side.
+        self.target_state.yaw = 180.0 if white_turn else 0.0
+        self.target_state.pitch = 32.0
+        self.target_state.distance = 15.4
 
     def focus_on(self, point: tuple[float, float, float]) -> None:
         self.focus_target = np.array(point, dtype="f4")
@@ -55,18 +72,11 @@ class CinematicCamera:
     def add_capture_shake(self, amount: float) -> None:
         self.shake = min(1.0, self.shake + amount)
 
-    def orbit(self, dx: float, dy: float) -> None:
-        self.target_state.yaw += dx * 0.18
-        self.target_state.pitch = float(np.clip(self.target_state.pitch + dy * 0.12, 18.0, 67.0))
-
-    def zoom(self, delta: float) -> None:
-        self.target_state.distance = float(np.clip(self.target_state.distance - delta, 10.0, 32.0))
-
     def update(self, dt: float) -> None:
-        self.target = _exp_smoothing_vec(self.target, self.focus_target, dt, speed=7.5)
-        self.state.yaw = _exp_smoothing(self.state.yaw, self.target_state.yaw, dt, speed=4.5)
-        self.state.pitch = _exp_smoothing(self.state.pitch, self.target_state.pitch, dt, speed=4.5)
-        self.state.distance = _exp_smoothing(self.state.distance, self.target_state.distance, dt, speed=5.2)
+        self.target = _exp_smoothing_vec(self.target, self.focus_target, dt, speed=9.2)
+        self.state.yaw = _exp_smoothing(self.state.yaw, self.target_state.yaw, dt, speed=4.8)
+        self.state.pitch = _exp_smoothing(self.state.pitch, self.target_state.pitch, dt, speed=5.2)
+        self.state.distance = _exp_smoothing(self.state.distance, self.target_state.distance, dt, speed=5.6)
 
         yaw_r = math.radians(self.state.yaw)
         pitch_r = math.radians(self.state.pitch)
@@ -80,6 +90,18 @@ class CinematicCamera:
             dtype="f4",
         )
 
+        # Turn handoff "drone" motion to make side swap obvious.
+        if self.turn_transition > 0.0001:
+            progress = 1.0 - self.turn_transition
+            arc = math.sin(progress * math.pi)
+            side_sway = arc * 1.55 * self.transition_sign
+            up_lift = arc * 2.1
+
+            right = np.array([math.cos(yaw_r), 0.0, -math.sin(yaw_r)], dtype="f4")
+            eye += right * side_sway
+            eye[1] += up_lift
+            self.turn_transition = max(0.0, self.turn_transition - (dt * 1.65))
+
         if self.shake > 0.0001:
             self._noise_phase += dt * 30.0
             jitter = np.array(
@@ -90,7 +112,7 @@ class CinematicCamera:
                 ],
                 dtype="f4",
             )
-            eye += jitter * (0.07 * self.shake)
+            eye += jitter * (0.06 * self.shake)
             self.shake = max(0.0, self.shake - (dt * 2.2))
 
         self.eye = eye
@@ -103,12 +125,9 @@ class CinematicCamera:
 
     def projection_matrix(self, aspect_ratio: float) -> np.ndarray:
         return np.array(
-            Matrix44.perspective_projection(53.0, max(aspect_ratio, 0.1), 0.1, 280.0, dtype="f4"),
+            Matrix44.perspective_projection(50.0, max(aspect_ratio, 0.1), 0.1, 280.0, dtype="f4"),
             dtype="f4",
         )
-
-    def view_projection(self, aspect_ratio: float) -> np.ndarray:
-        return self.projection_matrix(aspect_ratio) @ self.view_matrix()
 
     def forward(self) -> np.ndarray:
         return _normalize(self.target - self.eye)

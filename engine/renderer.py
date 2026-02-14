@@ -9,6 +9,7 @@ from typing import Dict, List, Optional, Tuple
 import chess
 import moderngl
 import numpy as np
+from game_core import ChessGameState
 from pyrr import Matrix44, Vector3
 
 from .camera import CinematicCamera
@@ -338,9 +339,8 @@ class ChessRenderer:
         self.motion_blur = 0.0
         self.rng = random.Random(3441)
 
-        self.board = chess.Board()
-        self.selected_square: Optional[int] = None
-        self.legal_targets: set[int] = set()
+        self.game = ChessGameState()
+        self.last_score_text = ""
 
         self.cursor_x = 0.0
         self.cursor_y = 0.0
@@ -437,7 +437,7 @@ class ChessRenderer:
         for _ in range(185):
             x = self.rng.uniform(-40.0, 40.0)
             z = self.rng.uniform(-40.0, 40.0)
-            if abs(x) < 10.0 and abs(z) < 10.0:
+            if self._in_board_core(x, z) or self._in_camera_corridor(x, z):
                 continue
 
             w = self.rng.uniform(1.2, 3.6)
@@ -462,6 +462,18 @@ class ChessRenderer:
             )
             self.static_objects.append(strip)
             self.pulsing_objects.append((strip, strip.material))
+
+    @staticmethod
+    def _in_board_core(x: float, z: float) -> bool:
+        return abs(x) < 10.0 and abs(z) < 10.0
+
+    @staticmethod
+    def _in_camera_corridor(x: float, z: float) -> bool:
+        # Keep a wide, long lane clear for both player-side drone perspectives.
+        if abs(x) < 8.5 and abs(z) < 30.0:
+            return True
+        # Also clear diagonal lanes used during side swaps.
+        return abs(x) < 14.0 and abs(z) < 18.0
 
     def _build_board(self) -> None:
         self.static_objects.extend(
@@ -565,7 +577,7 @@ class ChessRenderer:
 
     def _rebuild_pieces(self) -> None:
         self.piece_objects.clear()
-        for square, piece in self.board.piece_map().items():
+        for square, piece in self.game.board.piece_map().items():
             x, z = self._square_to_world(square)
             base_y = self.board_height + 0.05
             mat = CyberpunkMaterials.WHITE_PIECE if piece.color == chess.WHITE else CyberpunkMaterials.BLACK_PIECE
@@ -581,7 +593,7 @@ class ChessRenderer:
                     )
                 )
 
-            if square == self.selected_square:
+            if square == self.game.selected_square:
                 self.piece_objects.append(
                     RenderObject(
                         "cube",
@@ -616,21 +628,26 @@ class ChessRenderer:
             return
         # GLFW key code: R=82
         if key == 82:
-            self.board.reset()
-            self.selected_square = None
-            self.legal_targets.clear()
-            self._set_turn_camera_pose()
-            self._rebuild_pieces()
+            self.game.reset()
+            self._apply_game_update(refresh_turn_pose=True, board_changed=True)
             return
 
     def _turn_focus_point(self) -> Tuple[float, float, float]:
-        white_turn = self.board.turn == chess.WHITE
-        z_bias = -1.25 if white_turn else 1.25
-        return (0.0, self.board_height + 0.28, z_bias)
+        white_turn = self.game.board.turn == chess.WHITE
+        king_square = self.game.board.king(chess.WHITE if white_turn else chess.BLACK)
+        if king_square is None:
+            z_bias = -1.5 if white_turn else 1.5
+            return (0.0, self.board_height + 0.48, z_bias)
+
+        king_x, king_z = self._square_to_world(king_square)
+        z_bias = -1.55 if white_turn else 1.55
+        return (king_x * 0.35, self.board_height + 0.48, z_bias)
 
     def _set_turn_camera_pose(self) -> None:
-        self.camera.set_turn_view(self.board.turn == chess.WHITE)
+        white_turn = self.game.board.turn == chess.WHITE
+        self.camera.set_turn_view(white_turn)
         self.camera.focus_on(self._turn_focus_point())
+        self.lighting.apply_turn_bias(white_turn, self.board_height)
 
     def _pick_square(self, mouse_x: float, mouse_y: float) -> Optional[int]:
         aspect = self.width / max(1, self.height)
@@ -667,71 +684,51 @@ class ChessRenderer:
         return None
 
     def _handle_square_click(self, square: int) -> None:
-        if self.board.is_game_over():
-            return
+        update = self.game.click_square(square)
+        self._apply_game_update(
+            refresh_turn_pose=update.refresh_turn_pose,
+            board_changed=update.board_changed,
+            selection_changed=update.selection_changed,
+            focus_square=update.focus_square,
+            captured=update.captured,
+            moved=update.moved,
+        )
 
-        clicked_piece = self.board.piece_at(square)
-        turn_color = self.board.turn
-
-        if self.selected_square is None:
-            if clicked_piece and clicked_piece.color == turn_color:
-                self.selected_square = square
-                self.legal_targets = {move.to_square for move in self.board.legal_moves if move.from_square == square}
-                x, z = self._square_to_world(square)
-                self.camera.focus_on((x, self.board_height + 0.35, z))
-                self._rebuild_pieces()
-            return
-
-        if clicked_piece and clicked_piece.color == turn_color:
-            self.selected_square = square
-            self.legal_targets = {move.to_square for move in self.board.legal_moves if move.from_square == square}
-            x, z = self._square_to_world(square)
+    def _apply_game_update(
+        self,
+        refresh_turn_pose: bool = False,
+        board_changed: bool = False,
+        selection_changed: bool = False,
+        focus_square: Optional[int] = None,
+        captured: bool = False,
+        moved: bool = False,
+    ) -> None:
+        if focus_square is not None:
+            x, z = self._square_to_world(focus_square)
             self.camera.focus_on((x, self.board_height + 0.35, z))
-            self._rebuild_pieces()
-            return
-
-        move = chess.Move(self.selected_square, square)
-        if move not in self.board.legal_moves:
-            selected_piece = self.board.piece_at(self.selected_square)
-            if selected_piece and selected_piece.piece_type == chess.PAWN and chess.square_rank(square) in (0, 7):
-                move = chess.Move(self.selected_square, square, promotion=chess.QUEEN)
-
-        if move in self.board.legal_moves:
-            self._commit_move(move)
-        else:
-            self.selected_square = None
-            self.legal_targets.clear()
+        elif refresh_turn_pose:
             self._set_turn_camera_pose()
-            self._rebuild_pieces()
 
-    def _commit_move(self, move: chess.Move) -> None:
-        captured = self.board.piece_at(move.to_square) is not None or self.board.is_en_passant(move)
-        self.board.push(move)
-        self.selected_square = None
-        self.legal_targets.clear()
-        self._set_turn_camera_pose()
         if captured:
             self.camera.add_capture_shake(0.45)
-        self.motion_blur = max(self.motion_blur, 0.85)
-        self._rebuild_pieces()
+
+        if moved:
+            self.motion_blur = max(self.motion_blur, 0.85)
+
+        if board_changed or selection_changed:
+            self._rebuild_pieces()
 
     def turn_status_text(self) -> str:
-        if self.board.is_checkmate():
-            winner = "Black" if self.board.turn == chess.WHITE else "White"
-            return f"Checkmate | {winner} wins"
-        if self.board.is_stalemate():
-            return "Stalemate"
-        if self.board.is_insufficient_material() or self.board.is_seventyfive_moves() or self.board.is_fivefold_repetition():
-            return "Draw"
-        turn = "White" if self.board.turn == chess.WHITE else "Black"
-        if self.board.is_check():
-            return f"{turn} to move (Check)"
-        return f"{turn} to move"
+        return self.game.turn_status_text()
+
+    def score_status_text(self) -> str:
+        self.last_score_text = self.game.score_status_text()
+        return self.last_score_text
 
     def _effective_tile_material(self, square: int) -> MaterialDef:
-        if square == self.selected_square:
+        if square == self.game.selected_square:
             return CyberpunkMaterials.PIECE_SELECTION
-        if square in self.legal_targets:
+        if square in self.game.legal_targets:
             return CyberpunkMaterials.LEGAL_MARKER
         return self.tile_base_materials[square]
 

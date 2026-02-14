@@ -6,9 +6,9 @@ Vec3 = Tuple[float, float, float]
 
 @dataclass
 class DirectionalLightDef:
-    direction: Vec3 = (-0.38, -0.9, -0.3)
-    color: Vec3 = (0.96, 0.98, 1.0)
-    intensity: float = 2.0
+    direction: Vec3 = (-0.2, -0.96, -0.18)
+    color: Vec3 = (1.0, 0.99, 0.96)
+    intensity: float = 3.6
 
 
 @dataclass
@@ -31,7 +31,14 @@ class SpotLightDef:
 
 @dataclass
 class SceneLighting:
-    ambient_color: Vec3 = (0.1, 0.12, 0.16)
+    """
+    Lighting tuned for board readability:
+    - Strong neutral key light for piece definition
+    - Neon accents that do not overpower board contrast
+    - Turn-biased side lights so current player side is clearer
+    """
+
+    ambient_color: Vec3 = (0.13, 0.15, 0.18)
     directional: DirectionalLightDef = field(default_factory=DirectionalLightDef)
     point_lights: List[PointLightDef] = field(default_factory=list)
     spot_lights: List[SpotLightDef] = field(default_factory=list)
@@ -39,43 +46,70 @@ class SceneLighting:
     @staticmethod
     def cyberpunk_defaults(board_height: float) -> "SceneLighting":
         return SceneLighting(
-            ambient_color=(0.12, 0.14, 0.18),
+            ambient_color=(0.13, 0.15, 0.18),
             directional=DirectionalLightDef(
-                direction=(-0.34, -0.92, -0.2),
-                color=(1.0, 0.98, 0.95),
-                intensity=3.1,
+                direction=(-0.2, -0.96, -0.18),
+                color=(1.0, 0.99, 0.96),
+                intensity=3.6,
             ),
             point_lights=[
                 PointLightDef(
-                    position=(-6.2, board_height + 2.7, -4.8),
-                    color=(0.32, 0.95, 1.0),
-                    intensity=26.0,
-                    light_range=28.0,
+                    position=(-5.5, board_height + 2.6, -6.2),
+                    color=(0.25, 0.88, 1.0),
+                    intensity=16.0,
+                    light_range=26.0,
                 ),
                 PointLightDef(
-                    position=(6.2, board_height + 2.7, 4.8),
-                    color=(1.0, 0.32, 0.78),
-                    intensity=26.0,
-                    light_range=28.0,
+                    position=(5.5, board_height + 2.6, 6.2),
+                    color=(1.0, 0.32, 0.75),
+                    intensity=16.0,
+                    light_range=26.0,
                 ),
                 PointLightDef(
-                    position=(0.0, board_height + 4.2, 0.0),
-                    color=(0.72, 0.48, 1.0),
-                    intensity=18.0,
-                    light_range=24.0,
+                    position=(0.0, board_height + 3.9, 0.0),
+                    color=(0.68, 0.55, 1.0),
+                    intensity=10.0,
+                    light_range=20.0,
                 ),
             ],
             spot_lights=[
                 SpotLightDef(
-                    position=(0.0, board_height + 5.6, 0.0),
+                    position=(0.0, board_height + 5.4, 0.0),
                     direction=(0.0, -1.0, 0.0),
-                    color=(0.42, 0.92, 1.0),
-                    intensity=24.0,
-                    cutoff_cos=0.89,
+                    color=(0.58, 0.92, 1.0),
+                    intensity=18.0,
+                    cutoff_cos=0.9,
                     light_range=24.0,
                 )
             ],
         )
+
+    def apply_turn_bias(self, white_turn: bool, board_height: float) -> None:
+        """
+        Moves key accent lights toward the active player's side so the side-to-move
+        is visually emphasized without changing chess logic.
+        """
+        z_side = -5.8 if white_turn else 5.8
+        z_other = -z_side
+
+        # Primary cyan accent on current player side, pink on opponent side.
+        if len(self.point_lights) >= 1:
+            self.point_lights[0].position = (-5.2, board_height + 2.7, z_side)
+            self.point_lights[0].intensity = 20.0
+            self.point_lights[0].color = (0.24, 0.88, 1.0)
+        if len(self.point_lights) >= 2:
+            self.point_lights[1].position = (5.2, board_height + 2.7, z_other)
+            self.point_lights[1].intensity = 14.0
+            self.point_lights[1].color = (1.0, 0.34, 0.78)
+        if len(self.point_lights) >= 3:
+            self.point_lights[2].position = (0.0, board_height + 4.0, 0.0)
+            self.point_lights[2].intensity = 9.0
+            self.point_lights[2].color = (0.64, 0.54, 1.0)
+
+        if len(self.spot_lights) >= 1:
+            self.spot_lights[0].position = (0.0, board_height + 5.5, z_side * 0.35)
+            self.spot_lights[0].direction = (0.0, -1.0, 0.0)
+            self.spot_lights[0].intensity = 19.0
 
     def upload(self, program, max_point_lights: int, max_spot_lights: int) -> None:
         self._set_uniform(program, "uAmbient", self.ambient_color)

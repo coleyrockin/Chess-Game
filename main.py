@@ -100,7 +100,7 @@ class App:
 
                 glfw.poll_events()
                 self.renderer.update(dt)
-                title = f"{WINDOW_TITLE} | {self.renderer.turn_status_text()}"
+                title = f"{WINDOW_TITLE} | {self.renderer.turn_status_text()} | {self.renderer.score_status_text()}"
                 if title != self.last_title:
                     glfw.set_window_title(self.window, title)
                     self.last_title = title

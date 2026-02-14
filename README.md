@@ -26,11 +26,27 @@ engine/
         final_composite.frag
     lighting.py
     materials.py
+    scoring.py
     post_processing.py
     skybox.py
     camera.py
     shadows.py
     fog.py
+
+game_core/
+    chess_game.py
+    scoring.py
+
+unreal/
+    README.md
+    chess_state.schema.json
+    sample_state.json
+    export_state.py
+    Source/
+        NeonCityChess/
+            NeonCityChess.Build.cs
+            Public/
+            Private/
 ```
 
 ## Requirements
@@ -57,10 +73,16 @@ python main.py
 - `Esc`: quit
 
 Camera behavior:
-- Camera is fully automatic and game-directed.
-- Perspective transitions based on turn and piece interaction.
+- Camera is fully automatic and game-directed ("personal drone" per side).
+- Clear side-to-move perspective swap on every turn.
+- Board focus shifts to the active side's king area, then to selected pieces.
 - No player camera orbit/zoom controls.
 - Game launches in a standard window by default.
+
+Scoring system:
+- Built-in material scoring (`P=1, N=3, B=3, R=5, Q=9`).
+- Live score appears in the window title:
+  `Mat W:x B:y | Caps W:x B:y | White +n / Black +n / Even`.
 
 ## Visual direction
 - Floating chessboard above a neon city
@@ -71,3 +93,4 @@ Camera behavior:
 ## Notes
 - This renderer intentionally targets modern OpenGL and shader-based rendering.
 - If your GPU is older and cannot provide OpenGL 3.3 core, startup may fail.
+- Unreal migration handoff lives in `/Users/boydroberts/Documents/projects/Chess Game/unreal/`.
