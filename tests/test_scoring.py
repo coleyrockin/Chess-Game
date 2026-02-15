@@ -69,6 +69,13 @@ class TestSnapshot:
         assert snap.black_captured == 0
 
 
+    def test_captured_material_never_negative_with_promotions(self):
+        # Synthetic board with promoted material beyond starting value.
+        board = chess.Board("QQQQQQQQ/QQQQQQQQ/8/8/8/8/8/k6K w - - 0 1")
+        snap = PieceScorer.snapshot(board)
+        assert snap.black_captured == 0
+
+
 class TestStatusText:
     def test_even_position(self):
         board = chess.Board()

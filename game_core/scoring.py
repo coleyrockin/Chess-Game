@@ -49,8 +49,8 @@ class PieceScorer:
         return ScoreSnapshot(
             white_material=white,
             black_material=black,
-            white_captured=cls.STARTING_MATERIAL - black,
-            black_captured=cls.STARTING_MATERIAL - white,
+            white_captured=max(0, cls.STARTING_MATERIAL - black),
+            black_captured=max(0, cls.STARTING_MATERIAL - white),
             advantage=white - black,
         )
 
