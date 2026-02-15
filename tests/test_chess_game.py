@@ -139,6 +139,12 @@ class TestGameOver:
         assert gs.board.is_stalemate()
         assert "Stalemate" in gs.turn_status_text()
 
+    def test_insufficient_material_status_text(self):
+        gs = ChessGameState()
+        gs.board.set_fen("8/8/8/8/8/8/8/K6k w - - 0 1")
+        assert gs.board.is_insufficient_material()
+        assert gs.turn_status_text() == "Draw"
+
 
 # ---------------------------------------------------------------------------
 # Reset
