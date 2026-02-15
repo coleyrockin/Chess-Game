@@ -305,6 +305,14 @@ class RainDrop:
     render_obj: RenderObject
 
 
+@dataclass(frozen=True)
+class PiecePart:
+    mesh: str
+    offset: Tuple[float, float, float]
+    scale: Tuple[float, float, float]
+    yaw_degrees: float = 0.0
+
+
 
 def _model_matrix(
     position: Tuple[float, float, float],
@@ -320,6 +328,89 @@ def _model_matrix(
 def _cube_geometry() -> Tuple[np.ndarray, np.ndarray]:
     # Return pre-allocated module-level constants to avoid repeated allocations
     return _CUBE_VERTICES, _CUBE_INDICES
+
+
+def _cylinder_geometry(segments: int = 20) -> Tuple[np.ndarray, np.ndarray]:
+    vertices: List[float] = []
+    indices: List[int] = []
+
+    # Side surface
+    for i in range(segments + 1):
+        t = (i / segments) * math.tau
+        x = math.cos(t) * 0.5
+        z = math.sin(t) * 0.5
+        u = i / segments
+
+        # Bottom and top ring vertices for smooth side normals
+        vertices.extend([x, -0.5, z, x * 2.0, 0.0, z * 2.0, u, 0.0])
+        vertices.extend([x, 0.5, z, x * 2.0, 0.0, z * 2.0, u, 1.0])
+
+    for i in range(segments):
+        base = i * 2
+        indices.extend([base, base + 1, base + 3, base, base + 3, base + 2])
+
+    # Top cap
+    top_center_idx = len(vertices) // 8
+    vertices.extend([0.0, 0.5, 0.0, 0.0, 1.0, 0.0, 0.5, 0.5])
+    for i in range(segments):
+        t = (i / segments) * math.tau
+        x = math.cos(t) * 0.5
+        z = math.sin(t) * 0.5
+        vertices.extend([x, 0.5, z, 0.0, 1.0, 0.0, (x + 0.5), (z + 0.5)])
+    for i in range(segments):
+        a = top_center_idx + 1 + i
+        b = top_center_idx + 1 + ((i + 1) % segments)
+        indices.extend([top_center_idx, a, b])
+
+    # Bottom cap
+    bottom_center_idx = len(vertices) // 8
+    vertices.extend([0.0, -0.5, 0.0, 0.0, -1.0, 0.0, 0.5, 0.5])
+    for i in range(segments):
+        t = (i / segments) * math.tau
+        x = math.cos(t) * 0.5
+        z = math.sin(t) * 0.5
+        vertices.extend([x, -0.5, z, 0.0, -1.0, 0.0, (x + 0.5), (z + 0.5)])
+    for i in range(segments):
+        a = bottom_center_idx + 1 + i
+        b = bottom_center_idx + 1 + ((i + 1) % segments)
+        indices.extend([bottom_center_idx, b, a])
+
+    return np.array(vertices, dtype="f4"), np.array(indices, dtype="i4")
+
+
+def _cone_geometry(segments: int = 20) -> Tuple[np.ndarray, np.ndarray]:
+    vertices: List[float] = []
+    indices: List[int] = []
+    apex = np.array([0.0, 0.5, 0.0], dtype="f4")
+
+    # Side surface (flat-ish faces for readable silhouette)
+    for i in range(segments):
+        t0 = (i / segments) * math.tau
+        t1 = ((i + 1) / segments) * math.tau
+        p0 = np.array([math.cos(t0) * 0.5, -0.5, math.sin(t0) * 0.5], dtype="f4")
+        p1 = np.array([math.cos(t1) * 0.5, -0.5, math.sin(t1) * 0.5], dtype="f4")
+        normal = normalize(np.cross(p1 - p0, apex - p0))
+
+        base_idx = len(vertices) // 8
+        vertices.extend([apex[0], apex[1], apex[2], normal[0], normal[1], normal[2], 0.5, 1.0])
+        vertices.extend([p0[0], p0[1], p0[2], normal[0], normal[1], normal[2], 0.0, 0.0])
+        vertices.extend([p1[0], p1[1], p1[2], normal[0], normal[1], normal[2], 1.0, 0.0])
+        indices.extend([base_idx, base_idx + 1, base_idx + 2])
+
+    # Bottom cap
+    center_idx = len(vertices) // 8
+    vertices.extend([0.0, -0.5, 0.0, 0.0, -1.0, 0.0, 0.5, 0.5])
+    for i in range(segments):
+        t = (i / segments) * math.tau
+        x = math.cos(t) * 0.5
+        z = math.sin(t) * 0.5
+        vertices.extend([x, -0.5, z, 0.0, -1.0, 0.0, (x + 0.5), (z + 0.5)])
+    for i in range(segments):
+        a = center_idx + 1 + i
+        b = center_idx + 1 + ((i + 1) % segments)
+        indices.extend([center_idx, b, a])
+
+    return np.array(vertices, dtype="f4"), np.array(indices, dtype="i4")
 
 
 class ChessRenderer:
@@ -406,92 +497,155 @@ class ChessRenderer:
         self.depth_u_light_space = self.depth_program.get("uLightSpaceMatrix", None)
 
     def _build_meshes(self) -> Dict[str, MeshBundle]:
-        vertices, indices = _cube_geometry()
-        vbo = self.ctx.buffer(vertices.tobytes())
-        ibo = self.ctx.buffer(indices.tobytes())
-        pos_vbo = self.ctx.buffer(vertices.reshape(-1, 8)[:, 0:3].astype("f4").tobytes())
+        def build_mesh(vertices: np.ndarray, indices: np.ndarray) -> MeshBundle:
+            vbo = self.ctx.buffer(vertices.tobytes())
+            ibo = self.ctx.buffer(indices.tobytes())
+            pos_vbo = self.ctx.buffer(vertices.reshape(-1, 8)[:, 0:3].astype("f4").tobytes())
 
-        vao_scene = self.ctx.vertex_array(
-            self.scene_program,
-            [(vbo, "3f 3f 2f", "in_position", "in_normal", "in_uv")],
-            ibo,
-        )
-        vao_shadow = self.ctx.vertex_array(
-            self.depth_program,
-            [(pos_vbo, "3f", "in_position")],
-            ibo,
-        )
-        return {"cube": MeshBundle(vao_scene=vao_scene, vao_shadow=vao_shadow)}
+            vao_scene = self.ctx.vertex_array(
+                self.scene_program,
+                [(vbo, "3f 3f 2f", "in_position", "in_normal", "in_uv")],
+                ibo,
+            )
+            vao_shadow = self.ctx.vertex_array(
+                self.depth_program,
+                [(pos_vbo, "3f", "in_position")],
+                ibo,
+            )
+            return MeshBundle(vao_scene=vao_scene, vao_shadow=vao_shadow)
+
+        cube_v, cube_i = _cube_geometry()
+        cyl_v, cyl_i = _cylinder_geometry(24)
+        cone_v, cone_i = _cone_geometry(24)
+        return {
+            "cube": build_mesh(cube_v, cube_i),
+            "cylinder": build_mesh(cyl_v, cyl_i),
+            "cone": build_mesh(cone_v, cone_i),
+        }
 
     def _build_environment(self) -> None:
+        # Larger reflective plaza beneath board.
         self.static_objects.append(
             RenderObject(
                 "cube",
-                _model_matrix((0.0, -1.35, 0.0), (160.0, 0.1, 160.0)),
+                _model_matrix((0.0, -1.38, 0.0), (180.0, 0.1, 180.0)),
                 CyberpunkMaterials.WET_GROUND,
                 cast_shadow=False,
             )
         )
 
-        # Neon street grid
-        for lane in range(-70, 71, 5):
-            cyan = RenderObject(
-                "cube",
-                _model_matrix((lane, -1.3, 0.0), (0.03, 0.01, 150.0)),
-                CyberpunkMaterials.CITY_NEON_CYAN,
-                cast_shadow=False,
-                pulse_speed=self.rng.uniform(1.4, 2.6),
-                pulse_phase=self.rng.uniform(0.0, math.pi * 2.0),
-                pulse_strength=0.35,
-            )
-            pink = RenderObject(
-                "cube",
-                _model_matrix((0.0, -1.3, lane), (150.0, 0.01, 0.03)),
-                CyberpunkMaterials.CITY_NEON_PINK,
-                cast_shadow=False,
-                pulse_speed=self.rng.uniform(1.2, 2.2),
-                pulse_phase=self.rng.uniform(0.0, math.pi * 2.0),
-                pulse_strength=0.3,
-            )
-            self.static_objects.append(cyan)
-            self.static_objects.append(pink)
-            self.pulsing_objects.append((cyan, cyan.material))
-            self.pulsing_objects.append((pink, pink.material))
-
-        # Buildings with emissive strips
         accent_materials = [
             CyberpunkMaterials.CITY_NEON_CYAN,
             CyberpunkMaterials.CITY_NEON_PINK,
             CyberpunkMaterials.CITY_NEON_PURPLE,
         ]
-        for _ in range(185):
-            x = self.rng.uniform(-40.0, 40.0)
-            z = self.rng.uniform(-40.0, 40.0)
-            if self._in_board_core(x, z) or self._in_camera_corridor(x, z):
-                continue
 
-            w = self.rng.uniform(1.2, 3.6)
-            h = self.rng.uniform(5.0, 30.0)
-            tower = RenderObject(
-                "cube",
-                _model_matrix((x, (h * 0.5) - 1.25, z), (w, h, w)),
-                CyberpunkMaterials.CITY_BUILDING,
-                cast_shadow=True,
+        # Subtle local platform rings near the board.
+        for radius, mat in [(12.0, CyberpunkMaterials.CITY_NEON_CYAN), (17.0, CyberpunkMaterials.CITY_NEON_PINK)]:
+            for i in range(36):
+                angle = (i / 36.0) * math.tau
+                x = math.cos(angle) * radius
+                z = math.sin(angle) * radius
+                seg = RenderObject(
+                    "cube",
+                    _model_matrix((x, -1.30, z), (0.24, 0.014, 2.3), yaw_degrees=math.degrees(angle)),
+                    mat,
+                    cast_shadow=False,
+                    pulse_speed=self.rng.uniform(1.0, 2.1),
+                    pulse_phase=self.rng.uniform(0.0, math.tau),
+                    pulse_strength=0.22,
+                )
+                self.static_objects.append(seg)
+                self.pulsing_objects.append((seg, mat))
+
+        # Skyline ring 1: medium towers.
+        for i in range(48):
+            angle = (i / 48.0) * math.tau
+            radius = self.rng.uniform(24.0, 34.0)
+            x = math.cos(angle) * radius
+            z = math.sin(angle) * radius
+
+            w = self.rng.uniform(1.5, 3.4)
+            d = self.rng.uniform(1.5, 3.8)
+            h = self.rng.uniform(12.0, 30.0)
+            self.static_objects.append(
+                RenderObject(
+                    "cube",
+                    _model_matrix((x, (h * 0.5) - 1.25, z), (w, h, d)),
+                    CyberpunkMaterials.CITY_BUILDING,
+                    cast_shadow=True,
+                )
             )
-            self.static_objects.append(tower)
 
-            strip_mat = self.rng.choice(accent_materials)
-            strip = RenderObject(
-                "cube",
-                _model_matrix((x, (h * 0.6) - 1.25, z + (w * 0.5) + 0.03), (w * 0.9, 0.12, 0.04)),
-                strip_mat,
+            for side in (-1.0, 1.0):
+                mat = self.rng.choice(accent_materials)
+                strip = RenderObject(
+                    "cube",
+                    _model_matrix((x + (w * 0.5 + 0.04) * side, (h * 0.58) - 1.25, z), (0.04, h * 0.55, 0.06)),
+                    mat,
+                    cast_shadow=False,
+                    pulse_speed=self.rng.uniform(1.2, 2.4),
+                    pulse_phase=self.rng.uniform(0.0, math.tau),
+                    pulse_strength=0.35,
+                )
+                self.static_objects.append(strip)
+                self.pulsing_objects.append((strip, mat))
+
+        # Skyline ring 2: tall distant spires for depth.
+        for i in range(64):
+            angle = (i / 64.0) * math.tau
+            radius = self.rng.uniform(40.0, 62.0)
+            x = math.cos(angle) * radius
+            z = math.sin(angle) * radius
+
+            base_h = self.rng.uniform(20.0, 48.0)
+            self.static_objects.append(
+                RenderObject(
+                    "cube",
+                    _model_matrix((x, (base_h * 0.5) - 1.25, z), (2.0, base_h, 2.0)),
+                    CyberpunkMaterials.CITY_BUILDING,
+                    cast_shadow=False,
+                )
+            )
+            self.static_objects.append(
+                RenderObject(
+                    "cube",
+                    _model_matrix((x, base_h - 1.25 + 5.0, z), (0.7, 10.0, 0.7)),
+                    CyberpunkMaterials.CITY_BUILDING,
+                    cast_shadow=False,
+                )
+            )
+
+            spire = RenderObject(
+                "cone",
+                _model_matrix((x, base_h - 1.25 + 11.0, z), (0.45, 1.8, 0.45)),
+                self.rng.choice(accent_materials),
                 cast_shadow=False,
-                pulse_speed=self.rng.uniform(1.4, 3.3),
-                pulse_phase=self.rng.uniform(0.0, math.pi * 2.0),
-                pulse_strength=self.rng.uniform(0.2, 0.55),
+                pulse_speed=self.rng.uniform(1.3, 2.8),
+                pulse_phase=self.rng.uniform(0.0, math.tau),
+                pulse_strength=0.40,
             )
-            self.static_objects.append(strip)
-            self.pulsing_objects.append((strip, strip.material))
+            self.static_objects.append(spire)
+            self.pulsing_objects.append((spire, spire.material))
+
+        # Floating billboard shards for skyline character.
+        for _ in range(20):
+            angle = self.rng.uniform(0.0, math.tau)
+            radius = self.rng.uniform(18.0, 28.0)
+            x = math.cos(angle) * radius
+            z = math.sin(angle) * radius
+            y = self.rng.uniform(8.0, 18.0)
+            panel = RenderObject(
+                "cube",
+                _model_matrix((x, y, z), (self.rng.uniform(1.8, 4.0), 0.08, self.rng.uniform(0.2, 0.35)), yaw_degrees=self.rng.uniform(0.0, 360.0)),
+                self.rng.choice(accent_materials),
+                cast_shadow=False,
+                pulse_speed=self.rng.uniform(1.5, 3.0),
+                pulse_phase=self.rng.uniform(0.0, math.tau),
+                pulse_strength=0.45,
+            )
+            self.static_objects.append(panel)
+            self.pulsing_objects.append((panel, panel.material))
 
     @staticmethod
     def _in_board_core(x: float, z: float) -> bool:
@@ -576,33 +730,72 @@ class ChessRenderer:
         rank = chess.square_rank(square)
         return file_idx - 3.5, rank - 3.5
 
-    def _piece_parts(self, piece_type: int) -> List[Tuple[Tuple[float, float, float], Tuple[float, float, float]]]:
-        base = [((0.0, 0.05, 0.0), (0.5, 0.08, 0.5)), ((0.0, 0.11, 0.0), (0.36, 0.03, 0.36))]
+    def _piece_parts(self, piece_type: int) -> List[PiecePart]:
+        base: List[PiecePart] = [
+            PiecePart("cylinder", (0.0, 0.05, 0.0), (0.58, 0.08, 0.58)),
+            PiecePart("cylinder", (0.0, 0.11, 0.0), (0.44, 0.04, 0.44)),
+        ]
+
         if piece_type == chess.PAWN:
-            return base + [((0.0, 0.24, 0.0), (0.25, 0.24, 0.25)), ((0.0, 0.47, 0.0), (0.18, 0.18, 0.18))]
+            return base + [
+                PiecePart("cylinder", (0.0, 0.23, 0.0), (0.24, 0.20, 0.24)),
+                PiecePart("cylinder", (0.0, 0.36, 0.0), (0.16, 0.10, 0.16)),
+                PiecePart("cone", (0.0, 0.50, 0.0), (0.15, 0.14, 0.15)),
+            ]
+
         if piece_type == chess.ROOK:
-            return base + [((0.0, 0.33, 0.0), (0.38, 0.48, 0.38)), ((0.0, 0.61, 0.0), (0.48, 0.1, 0.48))]
+            return base + [
+                PiecePart("cylinder", (0.0, 0.28, 0.0), (0.34, 0.30, 0.34)),
+                PiecePart("cylinder", (0.0, 0.50, 0.0), (0.44, 0.10, 0.44)),
+                PiecePart("cube", (-0.20, 0.62, -0.20), (0.10, 0.10, 0.10)),
+                PiecePart("cube", (-0.20, 0.62, 0.20), (0.10, 0.10, 0.10)),
+                PiecePart("cube", (0.20, 0.62, -0.20), (0.10, 0.10, 0.10)),
+                PiecePart("cube", (0.20, 0.62, 0.20), (0.10, 0.10, 0.10)),
+            ]
+
         if piece_type == chess.KNIGHT:
             return base + [
-                ((0.0, 0.28, 0.0), (0.3, 0.3, 0.3)),
-                ((0.0, 0.56, 0.0), (0.22, 0.46, 0.22)),
-                ((0.0, 0.74, 0.08), (0.2, 0.2, 0.2)),
+                PiecePart("cylinder", (0.0, 0.24, 0.0), (0.30, 0.18, 0.30)),
+                PiecePart("cube", (0.0, 0.42, -0.03), (0.22, 0.24, 0.30)),
+                PiecePart("cube", (0.0, 0.62, 0.08), (0.14, 0.30, 0.18)),
+                PiecePart("cube", (0.0, 0.80, 0.15), (0.10, 0.10, 0.14)),
+                PiecePart("cube", (0.06, 0.88, 0.13), (0.03, 0.10, 0.03)),
+                PiecePart("cube", (-0.06, 0.88, 0.13), (0.03, 0.10, 0.03)),
+                PiecePart("cube", (0.0, 0.68, -0.12), (0.04, 0.22, 0.08)),
             ]
+
         if piece_type == chess.BISHOP:
-            return base + [((0.0, 0.38, 0.0), (0.32, 0.56, 0.32)), ((0.0, 0.68, 0.0), (0.18, 0.18, 0.18))]
+            return base + [
+                PiecePart("cylinder", (0.0, 0.24, 0.0), (0.28, 0.20, 0.28)),
+                PiecePart("cylinder", (0.0, 0.45, 0.0), (0.20, 0.26, 0.20)),
+                PiecePart("cone", (0.0, 0.68, 0.0), (0.14, 0.24, 0.14)),
+                PiecePart("cylinder", (0.0, 0.83, 0.0), (0.08, 0.08, 0.08)),
+                PiecePart("cube", (0.0, 0.72, 0.12), (0.02, 0.20, 0.04)),
+            ]
+
         if piece_type == chess.QUEEN:
             return base + [
-                ((0.0, 0.31, 0.0), (0.32, 0.36, 0.32)),
-                ((0.0, 0.58, 0.0), (0.44, 0.3, 0.44)),
-                ((0.0, 0.8, 0.0), (0.16, 0.16, 0.16)),
+                PiecePart("cylinder", (0.0, 0.27, 0.0), (0.30, 0.24, 0.30)),
+                PiecePart("cylinder", (0.0, 0.48, 0.0), (0.22, 0.18, 0.22)),
+                PiecePart("cylinder", (0.0, 0.62, 0.0), (0.34, 0.07, 0.34)),
+                PiecePart("cylinder", (0.0, 0.75, 0.0), (0.12, 0.10, 0.12)),
+                PiecePart("cone", (-0.16, 0.82, 0.0), (0.05, 0.12, 0.05)),
+                PiecePart("cone", (0.16, 0.82, 0.0), (0.05, 0.12, 0.05)),
+                PiecePart("cone", (0.0, 0.82, -0.16), (0.05, 0.12, 0.05)),
+                PiecePart("cone", (0.0, 0.82, 0.16), (0.05, 0.12, 0.05)),
+                PiecePart("cone", (0.0, 0.88, 0.0), (0.06, 0.10, 0.06)),
             ]
+
         if piece_type == chess.KING:
             return base + [
-                ((0.0, 0.32, 0.0), (0.34, 0.44, 0.34)),
-                ((0.0, 0.63, 0.0), (0.22, 0.24, 0.22)),
-                ((0.0, 0.84, 0.0), (0.08, 0.3, 0.08)),
-                ((0.0, 0.84, 0.0), (0.3, 0.08, 0.08)),
+                PiecePart("cylinder", (0.0, 0.28, 0.0), (0.30, 0.24, 0.30)),
+                PiecePart("cylinder", (0.0, 0.50, 0.0), (0.22, 0.22, 0.22)),
+                PiecePart("cylinder", (0.0, 0.70, 0.0), (0.12, 0.12, 0.12)),
+                PiecePart("cylinder", (0.0, 0.84, 0.0), (0.04, 0.22, 0.04)),
+                PiecePart("cube", (0.0, 0.91, 0.0), (0.22, 0.04, 0.04)),
+                PiecePart("cube", (0.0, 0.96, 0.0), (0.04, 0.14, 0.04)),
             ]
+
         return base
 
     def _rebuild_pieces(self) -> None:
@@ -612,12 +805,12 @@ class ChessRenderer:
             base_y = self.board_height + 0.05
             mat = CyberpunkMaterials.WHITE_PIECE if piece.color == chess.WHITE else CyberpunkMaterials.BLACK_PIECE
 
-            for offset, scale in self._piece_parts(piece.piece_type):
-                world_pos = (x + offset[0], base_y + offset[1], z + offset[2])
+            for part in self._piece_parts(piece.piece_type):
+                world_pos = (x + part.offset[0], base_y + part.offset[1], z + part.offset[2])
                 self.piece_objects.append(
                     RenderObject(
-                        "cube",
-                        _model_matrix(world_pos, scale),
+                        part.mesh,
+                        _model_matrix(world_pos, part.scale, yaw_degrees=part.yaw_degrees),
                         mat,
                         cast_shadow=True,
                     )

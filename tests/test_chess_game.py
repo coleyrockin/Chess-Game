@@ -75,6 +75,7 @@ class TestMoves:
         update = gs.click_square(chess.E4)
         assert update.moved
         assert update.board_changed
+        assert update.refresh_turn_pose
         assert not update.captured
         assert gs.board.turn == chess.BLACK
 
@@ -83,6 +84,7 @@ class TestMoves:
         gs.click_square(chess.E2)
         update = gs.click_square(chess.E5)  # can't jump 3 squares
         assert update.selection_changed
+        assert update.refresh_turn_pose
         assert gs.selected_square is None
         assert gs.board.turn == chess.WHITE
 
@@ -94,6 +96,7 @@ class TestMoves:
         update = gs.click_square(chess.D5)
         assert update.captured
         assert update.moved
+        assert update.refresh_turn_pose
 
     def test_auto_promotion(self):
         gs = ChessGameState()
@@ -101,6 +104,7 @@ class TestMoves:
         gs.click_square(chess.E7)
         update = gs.click_square(chess.E8)
         assert update.moved
+        assert update.refresh_turn_pose
         promoted = gs.board.piece_at(chess.E8)
         assert promoted is not None
         assert promoted.piece_type == chess.QUEEN
@@ -111,6 +115,7 @@ class TestMoves:
         gs.click_square(chess.F5)
         update = gs.click_square(chess.E6)
         assert update.captured
+        assert update.refresh_turn_pose
 
 
 # ---------------------------------------------------------------------------
@@ -187,11 +192,10 @@ class TestStatusText:
 
     def test_check_indicator(self):
         gs = ChessGameState()
-        gs.board.set_fen("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKB1R b KQkq - 0 2")
-        # Not in check — just set up a real check position
+        # Black king on e8 is in check from white queen on e7.
         gs.board.set_fen("rnbqkbnr/ppppQppp/8/4p3/4P3/8/PPPP1PPP/RNB1KBNR b KQkq - 0 2")
-        if gs.board.is_check():
-            assert "Check" in gs.turn_status_text()
+        assert gs.board.is_check()
+        assert gs.turn_status_text() == "Black to move (Check)"
 
 
 # ---------------------------------------------------------------------------

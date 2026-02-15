@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import tempfile
 from pathlib import Path
 
 import numpy as np
@@ -53,12 +52,11 @@ class TestNormalizeSafe:
 
 
 class TestReadShader:
-    def test_reads_file_content(self):
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".glsl", delete=False) as f:
-            f.write("void main() {}")
-            f.flush()
-            content = read_shader(Path(f.name))
-            assert content == "void main() {}"
+    def test_reads_file_content(self, tmp_path: Path):
+        shader_path = tmp_path / "shader.glsl"
+        shader_path.write_text("void main() {}", encoding="utf-8")
+        content = read_shader(shader_path)
+        assert content == "void main() {}"
 
     def test_missing_file_raises(self):
         with pytest.raises(FileNotFoundError):
