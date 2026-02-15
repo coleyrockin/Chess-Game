@@ -19,9 +19,15 @@ from .materials import CyberpunkMaterials, MaterialDef
 from .post_processing import PostProcessingPipeline
 from .shadows import ShadowMapper
 from .skybox import SkyboxPass
+from .utils import normalize, read_shader
 
 MAX_POINT_LIGHTS = 8
 MAX_SPOT_LIGHTS = 2
+
+# GLFW key codes used in on_key — avoids importing glfw in the renderer.
+KEY_R = 82
+MOUSE_LEFT = 0
+ACTION_PRESS = 1
 
 # Module-level constants for geometry to avoid repeated allocations
 _CUBE_VERTICES = np.array(
@@ -299,16 +305,6 @@ class RainDrop:
     render_obj: RenderObject
 
 
-def _read_text(path: Path) -> str:
-    return path.read_text(encoding="utf-8")
-
-
-def _normalize(v: np.ndarray) -> np.ndarray:
-    n = np.linalg.norm(v)
-    if n < 1e-6:
-        return v
-    return v / n
-
 
 def _model_matrix(
     position: Tuple[float, float, float],
@@ -382,8 +378,8 @@ class ChessRenderer:
 
     def _load_program(self, vertex_name: str, fragment_name: str) -> moderngl.Program:
         return self.ctx.program(
-            vertex_shader=_read_text(self.shader_dir / vertex_name),
-            fragment_shader=_read_text(self.shader_dir / fragment_name),
+            vertex_shader=read_shader(self.shader_dir / vertex_name),
+            fragment_shader=read_shader(self.shader_dir / fragment_name),
         )
 
     def _cache_uniform_locations(self) -> None:
@@ -651,21 +647,16 @@ class ChessRenderer:
         self.cursor_x = x
         self.cursor_y = y
 
-    def on_scroll(self, y_offset: float) -> None:
-        del y_offset
-
     def on_mouse_button(self, button: int, action: int, x: float, y: float) -> None:
-        # GLFW values: left=0 press=1
-        if button == 0 and action == 1:
+        if button == MOUSE_LEFT and action == ACTION_PRESS:
             square = self._pick_square(x, y)
             if square is not None:
                 self._handle_square_click(square)
 
     def on_key(self, key: int, action: int) -> None:
-        if action != 1:
+        if action != ACTION_PRESS:
             return
-        # GLFW key code: R=82
-        if key == 82:
+        if key == KEY_R:
             self.game.reset()
             self._apply_game_update(refresh_turn_pose=True, board_changed=True)
             return
@@ -718,7 +709,7 @@ class ChessRenderer:
         far_world /= far_world[3]
 
         ray_origin = near_world[:3]
-        ray_dir = _normalize(far_world[:3] - near_world[:3])
+        ray_dir = normalize(far_world[:3] - near_world[:3])
         if abs(ray_dir[1]) < 1e-6:
             return None
 

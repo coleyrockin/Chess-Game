@@ -4,6 +4,8 @@ from dataclasses import dataclass
 import numpy as np
 from pyrr import Matrix44, Vector3
 
+from .utils import normalize
+
 
 def _exp_smoothing(current: float, target: float, dt: float, speed: float) -> float:
     blend = 1.0 - math.exp(-speed * max(dt, 1e-6))
@@ -13,13 +15,6 @@ def _exp_smoothing(current: float, target: float, dt: float, speed: float) -> fl
 def _exp_smoothing_vec(current: np.ndarray, target: np.ndarray, dt: float, speed: float) -> np.ndarray:
     blend = 1.0 - math.exp(-speed * max(dt, 1e-6))
     return current + ((target - current) * blend)
-
-
-def _normalize(v: np.ndarray) -> np.ndarray:
-    n = np.linalg.norm(v)
-    if n < 1e-6:
-        return v
-    return v / n
 
 
 @dataclass
@@ -130,4 +125,4 @@ class CinematicCamera:
         )
 
     def forward(self) -> np.ndarray:
-        return _normalize(self.target - self.eye)
+        return normalize(self.target - self.eye)

@@ -1,12 +1,7 @@
 import numpy as np
 from pyrr import Matrix44, Vector3
 
-
-def _normalize(v: np.ndarray) -> np.ndarray:
-    n = np.linalg.norm(v)
-    if n < 1e-6:
-        return np.array([0.0, -1.0, 0.0], dtype="f4")
-    return v / n
+from .utils import normalize_safe
 
 
 class ShadowMapper:
@@ -23,7 +18,10 @@ class ShadowMapper:
 
     def update_light_matrix(self, direction: tuple[float, float, float], focus: tuple[float, float, float]) -> None:
         focus_v = np.array(focus, dtype="f4")
-        light_dir = _normalize(np.array(direction, dtype="f4"))
+        light_dir = normalize_safe(
+            np.array(direction, dtype="f4"),
+            fallback=np.array([0.0, -1.0, 0.0], dtype="f4"),
+        )
         light_pos = focus_v - (light_dir * 28.0)
 
         view = Matrix44.look_at(

@@ -2,17 +2,15 @@ from pathlib import Path
 
 import numpy as np
 
-
-def _read_text(path: Path) -> str:
-    return path.read_text(encoding="utf-8")
+from .utils import read_shader
 
 
 class SkyboxPass:
     def __init__(self, ctx, shader_dir: Path) -> None:
         self.ctx = ctx
         self.program = self.ctx.program(
-            vertex_shader=_read_text(shader_dir / "skybox.vert"),
-            fragment_shader=_read_text(shader_dir / "skybox.frag"),
+            vertex_shader=read_shader(shader_dir / "skybox.vert"),
+            fragment_shader=read_shader(shader_dir / "skybox.frag"),
         )
 
         vertices = np.array(

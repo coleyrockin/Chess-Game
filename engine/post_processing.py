@@ -2,9 +2,7 @@ from pathlib import Path
 
 import numpy as np
 
-
-def _read_text(path: Path) -> str:
-    return path.read_text(encoding="utf-8")
+from .utils import read_shader
 
 
 # Module-level constant for quad geometry to avoid repeated allocations
@@ -47,12 +45,12 @@ class PostProcessingPipeline:
         self.height = height
 
         self.blur_program = self.ctx.program(
-            vertex_shader=_read_text(shader_dir / "post_quad.vert"),
-            fragment_shader=_read_text(shader_dir / "bloom_blur.frag"),
+            vertex_shader=read_shader(shader_dir / "post_quad.vert"),
+            fragment_shader=read_shader(shader_dir / "bloom_blur.frag"),
         )
         self.composite_program = self.ctx.program(
-            vertex_shader=_read_text(shader_dir / "post_quad.vert"),
-            fragment_shader=_read_text(shader_dir / "final_composite.frag"),
+            vertex_shader=read_shader(shader_dir / "post_quad.vert"),
+            fragment_shader=read_shader(shader_dir / "final_composite.frag"),
         )
 
         # Use pre-allocated module-level constant
