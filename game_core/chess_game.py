@@ -31,6 +31,9 @@ class ChessGameState:
         return GameUpdate(board_changed=True, selection_changed=True, refresh_turn_pose=True)
 
     def click_square(self, square: int) -> GameUpdate:
+        if square < 0 or square > 63:
+            return GameUpdate()
+
         if self.board.is_game_over():
             return GameUpdate()
 
@@ -47,9 +50,9 @@ class ChessGameState:
             self._select_square(square)
             return GameUpdate(selection_changed=True, focus_square=square)
 
-        # Cache legal moves to avoid multiple expensive generations
+        # Cache legal moves to avoid multiple expensive generations.
         legal_moves = self.board.legal_moves
-        
+
         move = chess.Move(self.selected_square, square)
         if move not in legal_moves:
             selected_piece = self.board.piece_at(self.selected_square)

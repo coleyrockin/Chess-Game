@@ -1,0 +1,39 @@
+{
+  "ok": true,
+  "initialFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+  "whiteMove": {
+    "selectedSquare": "c2",
+    "selectPoint": {
+      "x": 520,
+      "y": 380
+    },
+    "targetPoint": {
+      "x": 520,
+      "y": 360
+    },
+    "beforeFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+    "afterFen": "rnbqkbnr/pppppppp/8/8/2P5/8/PP1PPPPP/RNBQKBNR b KQkq - 0 1",
+    "nextTurn": "b",
+    "status": "Black to move"
+  },
+  "blackMove": {
+    "selectedSquare": "b8",
+    "selectPoint": {
+      "x": 500,
+      "y": 220
+    },
+    "targetPoint": {
+      "x": 420,
+      "y": 300
+    },
+    "beforeFen": "rnbqkbnr/pppppppp/8/8/2P5/8/PP1PPPPP/RNBQKBNR b KQkq - 0 1",
+    "afterFen": "r1bqkbnr/pppppppp/n7/8/2P5/8/PP1PPPPP/RNBQKBNR w KQkq - 1 2",
+    "nextTurn": "w",
+    "status": "White to move"
+  },
+  "finalTurn": "w",
+  "finalFen": "r1bqkbnr/pppppppp/n7/8/2P5/8/PP1PPPPP/RNBQKBNR w KQkq - 1 2",
+  "selectedSquare": null,
+  "legalTargets": [],
+  "consoleErrors": []
+}

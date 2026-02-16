@@ -6,20 +6,36 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="X-Content-Type-Options" content="nosniff" />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
-  <meta name="description" content="Cinematic two-player chess with a neon cyberpunk aesthetic" />
+  <meta name="description" content="Playable cinematic web chess with multi-game scoring and camera controls" />
   <title>Neon Web Chess</title>
   <link rel="stylesheet" href="/src/style.css" />
 </head>
 
 <body>
-  <canvas id="game-canvas" aria-label="Neon Web Chess canvas"></canvas>
-  <div id="hud">
-    <h1>Neon Web Chess</h1>
-    <p id="status">Loading...</p>
-    <p id="last-move">Last move: --</p>
-    <p id="move-count">Moves played: 0</p>
-    <p id="score">Score</p>
-  </div>
+  <main id="app-shell">
+    <canvas id="game-canvas" aria-label="Neon Web Chess canvas"></canvas>
+    <canvas id="fallback-canvas" aria-label="Neon Web Chess fallback canvas"></canvas>
+
+    <aside id="hud" aria-label="Game status panel">
+      <h1>Neon Web Chess</h1>
+      <p id="game-counter">Game 1</p>
+      <p id="status">Loading...</p>
+      <p id="turn-indicator">Turn: White</p>
+      <p id="last-move">Last move: --</p>
+      <p id="material-score">Material</p>
+      <p id="match-score">Match</p>
+
+      <div id="actions">
+        <button id="new-game-btn" type="button">New Game (N)</button>
+        <button id="reset-board-btn" type="button">Reset Board (R)</button>
+        <button id="flip-camera-btn" type="button">Flip Camera (V)</button>
+        <button id="renderer-mode-btn" type="button">Switch Renderer (M)</button>
+      </div>
+
+      <p id="controls-hint">Click piece + destination | F fullscreen | Esc exit</p>
+    </aside>
+  </main>
+
   <script type="module" src="/src/main.ts"></script>
 </body>
 

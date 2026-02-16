@@ -1,9 +1,10 @@
 import { Chess, type Square } from 'chess.js';
 
-import { squareName } from './chessCoordinates';
+import { isValidSquare, squareName } from './chessCoordinates';
 
 export type PieceType = 'p' | 'n' | 'b' | 'r' | 'q' | 'k';
 export type PieceColor = 'w' | 'b';
+export type GameOutcome = 'white' | 'black' | 'draw' | null;
 
 export type BoardPiece = {
   square: string;
@@ -11,10 +12,19 @@ export type BoardPiece = {
   color: PieceColor;
 };
 
+export type MatchScore = {
+  whiteWins: number;
+  blackWins: number;
+  draws: number;
+  gamesCompleted: number;
+  gamesStarted: number;
+};
+
 export type ClickResult = {
   selectionChanged: boolean;
   boardChanged: boolean;
   moved: boolean;
+  gameFinished: boolean;
 };
 
 const PIECE_VALUE: Record<PieceType, number> = {
@@ -34,34 +44,52 @@ const PROMOTION_RANK_BY_COLOR: Record<PieceColor, string> = {
 export class ChessGameController {
   private readonly game = new Chess();
 
-  private selectedSquare: string | null = null;
+  private selectedSquare: Square | null = null;
 
   private legalTargets = new Set<string>();
 
+  private readonly match: MatchScore = {
+    whiteWins: 0,
+    blackWins: 0,
+    draws: 0,
+    gamesCompleted: 0,
+    gamesStarted: 1,
+  };
+
+  private currentOutcome: GameOutcome = null;
+
   clickSquare(square: string): ClickResult {
+    if (!isValidSquare(square)) {
+      return { selectionChanged: false, boardChanged: false, moved: false, gameFinished: false };
+    }
+
+    if (this.isGameOver()) {
+      return { selectionChanged: false, boardChanged: false, moved: false, gameFinished: true };
+    }
+
     const boardSquare = square as Square;
     const clickedPiece = this.game.get(boardSquare);
     const turn = this.game.turn();
 
     if (!this.selectedSquare) {
       if (clickedPiece && clickedPiece.color === turn) {
-        this.selectSquare(square);
-        return { selectionChanged: true, boardChanged: false, moved: false };
+        this.selectSquare(boardSquare);
+        return { selectionChanged: true, boardChanged: false, moved: false, gameFinished: false };
       }
-      return { selectionChanged: false, boardChanged: false, moved: false };
+      return { selectionChanged: false, boardChanged: false, moved: false, gameFinished: false };
     }
 
     if (clickedPiece && clickedPiece.color === turn) {
-      this.selectSquare(square);
-      return { selectionChanged: true, boardChanged: false, moved: false };
+      this.selectSquare(boardSquare);
+      return { selectionChanged: true, boardChanged: false, moved: false, gameFinished: false };
     }
 
     if (!this.legalTargets.has(square)) {
       this.clearSelection();
-      return { selectionChanged: true, boardChanged: false, moved: false };
+      return { selectionChanged: true, boardChanged: false, moved: false, gameFinished: false };
     }
 
-    const fromSquare = this.selectedSquare as Square;
+    const fromSquare = this.selectedSquare;
     const movingPiece = this.game.get(fromSquare);
     const needsPromotion =
       movingPiece?.type === 'p' &&
@@ -76,15 +104,22 @@ export class ChessGameController {
     this.clearSelection();
 
     if (!move) {
-      return { selectionChanged: true, boardChanged: false, moved: false };
+      return { selectionChanged: true, boardChanged: false, moved: false, gameFinished: false };
     }
 
-    return { selectionChanged: true, boardChanged: true, moved: true };
+    const gameFinished = this.captureOutcomeIfFinished();
+    return { selectionChanged: true, boardChanged: true, moved: true, gameFinished };
   }
 
-  reset(): void {
+  resetBoard(): void {
     this.game.reset();
+    this.currentOutcome = null;
     this.clearSelection();
+  }
+
+  newGame(): void {
+    this.match.gamesStarted += 1;
+    this.resetBoard();
   }
 
   statusText(): string {
@@ -92,31 +127,28 @@ export class ChessGameController {
       return this.game.turn() === 'w' ? 'Checkmate | Black wins' : 'Checkmate | White wins';
     }
     if (this.game.isStalemate()) {
-      return 'Stalemate';
+      return 'Stalemate | Draw';
     }
     if (this.game.isDraw()) {
       return 'Draw';
     }
-    const turn = this.game.turn() === 'w' ? 'White' : 'Black';
+    const turn = this.turnLabel();
     return this.game.isCheck() ? `${turn} to move (Check)` : `${turn} to move`;
   }
 
   scoreText(): string {
-    let white = 0;
-    let black = 0;
-
-    for (const piece of this.pieces()) {
-      const value = PIECE_VALUE[piece.type] ?? 0;
-      if (piece.color === 'w') {
-        white += value;
-      } else {
-        black += value;
-      }
-    }
-
-    const diff = white - black;
+    const material = this.material();
+    const diff = material.white - material.black;
     const evalText = diff === 0 ? 'Even' : diff > 0 ? `White +${diff}` : `Black +${Math.abs(diff)}`;
-    return `Mat W:${white} B:${black} | ${evalText}`;
+    return `Material W:${material.white} B:${material.black} | ${evalText}`;
+  }
+
+  matchText(): string {
+    return `Match W:${this.match.whiteWins} B:${this.match.blackWins} D:${this.match.draws}`;
+  }
+
+  gameCounterText(): string {
+    return `Game ${this.match.gamesStarted}`;
   }
 
   pieces(): BoardPiece[] {
@@ -142,7 +174,7 @@ export class ChessGameController {
     return result;
   }
 
-  selected(): string | null {
+  selected(): Square | null {
     return this.selectedSquare;
   }
 
@@ -158,23 +190,78 @@ export class ChessGameController {
     return this.game.turn() as PieceColor;
   }
 
-  fen(): string {
-    return this.game.fen();
+  turnLabel(): 'White' | 'Black' {
+    return this.turn() === 'w' ? 'White' : 'Black';
+  }
+
+  isGameOver(): boolean {
+    return this.game.isGameOver();
+  }
+
+  outcome(): GameOutcome {
+    return this.currentOutcome;
   }
 
   history(): string[] {
     return this.game.history();
   }
 
-  private selectSquare(square: string): void {
+  fen(): string {
+    return this.game.fen();
+  }
+
+  matchScore(): MatchScore {
+    return { ...this.match };
+  }
+
+  private material(): { white: number; black: number } {
+    let white = 0;
+    let black = 0;
+
+    for (const piece of this.pieces()) {
+      const value = PIECE_VALUE[piece.type] ?? 0;
+      if (piece.color === 'w') {
+        white += value;
+      } else {
+        black += value;
+      }
+    }
+
+    return { white, black };
+  }
+
+  private captureOutcomeIfFinished(): boolean {
+    if (!this.game.isGameOver()) {
+      this.currentOutcome = null;
+      return false;
+    }
+
+    if (this.game.isCheckmate()) {
+      const winner: GameOutcome = this.game.turn() === 'w' ? 'black' : 'white';
+      this.currentOutcome = winner;
+      if (winner === 'white') {
+        this.match.whiteWins += 1;
+      } else {
+        this.match.blackWins += 1;
+      }
+      this.match.gamesCompleted += 1;
+      return true;
+    }
+
+    this.currentOutcome = 'draw';
+    this.match.draws += 1;
+    this.match.gamesCompleted += 1;
+    return true;
+  }
+
+  private selectSquare(square: Square): void {
     this.selectedSquare = square;
     this.legalTargets = this.legalTargetsFrom(square);
   }
 
-  private legalTargetsFrom(square: string): Set<string> {
-    const fromSquare = square as Square;
+  private legalTargetsFrom(square: Square): Set<string> {
     const targets = new Set<string>();
-    for (const move of this.game.moves({ square: fromSquare, verbose: true })) {
+    for (const move of this.game.moves({ square, verbose: true })) {
       targets.add(move.to);
     }
     return targets;

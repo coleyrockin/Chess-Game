@@ -63,6 +63,14 @@ class TestSelection:
         update = gs.click_square(chess.E2)
         assert update.focus_square == chess.E2
 
+    @pytest.mark.parametrize("invalid_square", [-1, 64, 999])
+    def test_out_of_range_square_is_ignored(self, invalid_square: int):
+        gs = ChessGameState()
+        update = gs.click_square(invalid_square)
+        assert update == GameUpdate()
+        assert gs.selected_square is None
+        assert gs.legal_targets == set()
+
 
 # ---------------------------------------------------------------------------
 # Move execution
